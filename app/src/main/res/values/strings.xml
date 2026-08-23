@@ -100,6 +100,7 @@
     <string name="settings_startup_tab_desc">Which tab the app starts on. A tab that\'s switched off in Features falls back to Today.</string>
     <string name="settings_startup_last_used">Last used</string>
     <!-- Tab names. Used by the tab headers themselves and by the startup-tab picker. -->
+    <string name="tab_mind">Mind</string>
     <string name="tab_today">Today</string>
     <string name="tab_projects">Projects</string>
     <string name="tab_people">People</string>

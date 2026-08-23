@@ -428,6 +428,10 @@ private data class MainNavigationState(
      * Today tab and the home-screen widgets — this one had drifted from *them* too, checking only
      * project exclusion and neither deferral nor waiting-on, so the badge could show a count the
      * Today screen it links to didn't actually list. */
+    /** Mind tab visibility. Default OFF; flips on when the real runtime ships (#20). */
+    val mindFeatureEnabled: StateFlow<Boolean> = userPreferences.mindFeatureEnabledFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val todayRemainingCount: StateFlow<Int> = combine(
         tasks,
         projects,

@@ -53,6 +53,8 @@ sealed class Screen(val route: String) {
             "search" + (filters?.let { "?filters=${Uri.encode(it)}" } ?: "")
     }
     object Settings : Screen("settings")
+
+    object Mind : Screen("mind")
     object SettingsSection : Screen("settings_section/{section}") {
         fun createRoute(section: String) = "settings_section/$section"
     }

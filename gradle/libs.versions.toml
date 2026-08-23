@@ -11,6 +11,7 @@ activityCompose = "1.8.2"
 appcompat = "1.7.0"
 composeBom = "2025.12.00"
 room = "2.6.1"
+xybridKotlin = "0.5.0"
 hilt = "2.52"
 ksp = "2.0.21-1.0.26"
 navigationCompose = "2.7.7"
@@ -55,6 +56,7 @@ room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+xybrid-kotlin = { group = "ai.xybrid", name = "xybrid-kotlin", version.ref = "xybridKotlin" }
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 hilt-android-gradle-plugin = { group = "com.google.dagger", name = "hilt-android-gradle-plugin", version.ref = "hilt" }

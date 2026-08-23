@@ -372,8 +372,8 @@ class UserPreferences @Inject constructor(
     val dynamicColorEnabledFlow: Flow<Boolean> = prefsFlow.map { it[DYNAMIC_COLOR_ENABLED] ?: true }
     val peopleFeatureEnabledFlow: Flow<Boolean> = prefsFlow.map { it[PEOPLE_FEATURE_ENABLED] ?: true }
 
-    /** Mind tab gate. Default OFF until the real runtime lands (#20); then flips on. */
-    val mindFeatureEnabledFlow: Flow<Boolean> = prefsFlow.map { it[MIND_FEATURE_ENABLED] ?: false }
+    /** Mind tab gate — ON now that the runtime pipeline is device-validated (#73 run). */
+    val mindFeatureEnabledFlow: Flow<Boolean> = prefsFlow.map { it[MIND_FEATURE_ENABLED] ?: true }
 
     val lastMindReviewDayFlow: Flow<String?> = prefsFlow.map { it[MIND_LAST_REVIEW_DAY] }
 

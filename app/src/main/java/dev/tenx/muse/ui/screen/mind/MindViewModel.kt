@@ -167,19 +167,33 @@ class MindViewModel @Inject constructor(
         }
     }
 
-    /** Sheet visibility: explicit MODEL_MISSING error, or first visit with nothing on disk. */
+    /**
+     * Dialog visibility across the whole acquisition lifecycle (#75):
+     * active downloads and failures are ALWAYS visible; the first-run offer
+     * can be dismissed but returns until weights exist; Ready stays up until
+     * acknowledged so completion is never missed.
+     */
     val showDownloadSheet: StateFlow<Boolean> = kotlinx.coroutines.flow.combine(
         _uiState,
         modelDownloader.state
     ) { ui, download ->
-        ui.error == MindError.MODEL_MISSING ||
-            (!modelDownloader.isModelPresent() &&
-                download == dev.tenx.muse.data.mind.DownloadState.Idle)
+        when {
+            ui.error == MindError.MODEL_MISSING -> true
+            download is dev.tenx.muse.data.mind.DownloadState.Downloading -> true
+            download is dev.tenx.muse.data.mind.DownloadState.Failed -> true
+            download == dev.tenx.muse.data.mind.DownloadState.Ready -> !readyAcknowledged
+            !modelDownloader.isModelPresent() && !offerDismissed -> true
+            else -> false
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private var downloadJob: Job? = null
+    private var offerDismissed = false
+    private var readyAcknowledged = false
 
     fun startDownload() {
+        offerDismissed = false
+        readyAcknowledged = false
         if (downloadJob?.isActive == true) return
         downloadJob = viewModelScope.launch { modelDownloader.download() }
     }
@@ -187,12 +201,28 @@ class MindViewModel @Inject constructor(
     /** Pause keeps the .part file; next start resumes from byte offset. */
     fun pauseDownload() {
         downloadJob?.cancel()
-        _uiState.update { it.copy(error = null) }
     }
 
     fun dismissDownloadSheet() {
-        // Only dismissible when weights exist; otherwise first visit re-offers.
+        val dl = modelDownloader.state.value
+        if (dl is dev.tenx.muse.data.mind.DownloadState.Downloading ||
+            dl is dev.tenx.muse.data.mind.DownloadState.Failed
+        ) return // active downloads and failures cannot be dismissed away
+        offerDismissed = true
+        readyAcknowledged = modelDownloader.isModelPresent()
         _uiState.update { it.copy(error = null) }
+    }
+
+    /** 'Start reflecting': acknowledge completion and warm-load for an instant first send. */
+    fun acknowledgeReady() {
+        readyAcknowledged = true
+        viewModelScope.launch {
+            try {
+                reflectionEngine.prepare()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = dev.tenx.muse.data.mind.xybridErrorToMindError(e)) }
+            }
+        }
     }
 
     fun deleteSession(id: String) {

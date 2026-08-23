@@ -1,5 +1,7 @@
 package com.mj.yata.di
 
+import com.mj.yata.data.mind.ModelAcquisition
+import com.mj.yata.data.mind.ModelDownloader
 import com.mj.yata.data.mind.XybridRuntime
 import com.mj.yata.domain.mind.ReflectionEngine
 import dagger.Binds
@@ -23,4 +25,7 @@ abstract class MindModule {
 
     @Binds @Singleton
     abstract fun bindReflectionEngine(impl: XybridRuntime): ReflectionEngine
+
+    @Binds @Singleton
+    abstract fun bindModelAcquisition(impl: ModelDownloader): ModelAcquisition
 }

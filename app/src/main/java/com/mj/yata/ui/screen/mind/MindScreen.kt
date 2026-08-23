@@ -170,6 +170,8 @@ fun MindScreen(
             }
         }
 
+        MindDownloadDialog(viewModel)
+
         if (showHistory) {
             MindHistorySheet(
                 summaries = summaries,

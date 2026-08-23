@@ -35,10 +35,12 @@ class YataApplication : Application(), Configuration.Provider {
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
-        // Mind RAM guardrail: unload the model after 60s backgrounded (#24).
-        mindLifecycleGuard.registerWithProcessLifecycle()
-
         super.onCreate()
+
+        // Mind RAM guardrail: unload the model after 60s backgrounded (#24).
+        // MUST run after super.onCreate(): Hilt performs field injection there,
+        // and touching an @Inject lateinit before it crashes at startup (#73).
+        mindLifecycleGuard.registerWithProcessLifecycle()
 
         // sshj (SFTP backup) needs Bouncy Castle for algorithms Android's stock security
         // providers don't cover (Ed25519 keys, curve25519-sha256 key exchange), which a lot of

@@ -8,8 +8,8 @@
         android:shortcutLongLabel="@string/shortcut_quick_add_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.mj.yata"
-            android:targetClass="com.mj.yata.MainActivity">
+            android:targetPackage="dev.tenx.muse"
+            android:targetClass="dev.tenx.muse.MainActivity">
             <extra android:name="shortcut_action" android:value="quick_add" />
         </intent>
         <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
@@ -26,8 +26,8 @@
         android:shortcutLongLabel="@string/shortcut_today_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.mj.yata"
-            android:targetClass="com.mj.yata.MainActivity">
+            android:targetPackage="dev.tenx.muse"
+            android:targetClass="dev.tenx.muse.MainActivity">
             <extra android:name="shortcut_action" android:value="today" />
         </intent>
     </shortcut>
@@ -36,8 +36,8 @@
     <capability android:name="actions.intent.OPEN_APP_FEATURE">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.mj.yata"
-            android:targetClass="com.mj.yata.MainActivity">
+            android:targetPackage="dev.tenx.muse"
+            android:targetClass="dev.tenx.muse.MainActivity">
             <parameter
                 android:name="feature"
                 android:key="feature" />

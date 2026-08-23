@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.mj.yata.baselineprofile"
+    namespace = "dev.tenx.muse.baselineprofile"
     compileSdk = 35
 
     defaultConfig {

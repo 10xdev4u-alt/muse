@@ -78,7 +78,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="yata" />
+                <data android:scheme="muse" />
             </intent-filter>
             <meta-data
                 android:name="android.app.shortcuts"
@@ -90,7 +90,7 @@
             android:name=".notification.ReminderReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.mj.yata.REMINDER" />
+                <action android:name="dev.tenx.muse.REMINDER" />
             </intent-filter>
         </receiver>
 
@@ -99,10 +99,10 @@
             android:name=".notification.NotificationActionReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.mj.yata.ACTION_COMPLETE_TASK" />
-                <action android:name="com.mj.yata.ACTION_SNOOZE_TASK" />
-                <action android:name="com.mj.yata.ACTION_SNOOZE_15M" />
-                <action android:name="com.mj.yata.ACTION_SNOOZE_TOMORROW" />
+                <action android:name="dev.tenx.muse.ACTION_COMPLETE_TASK" />
+                <action android:name="dev.tenx.muse.ACTION_SNOOZE_TASK" />
+                <action android:name="dev.tenx.muse.ACTION_SNOOZE_15M" />
+                <action android:name="dev.tenx.muse.ACTION_SNOOZE_TOMORROW" />
             </intent-filter>
         </receiver>
 

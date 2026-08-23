@@ -89,6 +89,34 @@ class MindViewModelTest {
         override fun observeSession(sessionId: String): Flow<List<JournalEntry>> =
             store.map { rows -> rows[sessionId].orEmpty().sortedBy { it.createdAt } }
 
+        override fun observeSessionSummaries(): Flow<List<com.mj.yata.domain.model.JournalSessionSummary>> =
+            store.map { rows ->
+                rows.values.flatten()
+                    .filter { it.role == JournalRole.USER }
+                    .groupBy { it.sessionId }
+                    .map { (sid, entries) ->
+                        com.mj.yata.domain.model.JournalSessionSummary(
+                            sessionId = sid,
+                            startedAt = entries.minOf { it.createdAt },
+                            preview = entries.minByOrNull { it.createdAt }?.body
+                        )
+                    }
+                    .sortedByDescending { it.startedAt }
+            }
+
+        override suspend fun snapshotForRestore(sessionId: String): List<JournalEntry> =
+            store.value[sessionId].orEmpty()
+
+        override suspend fun restoreSession(entries: List<JournalEntry>) {
+            store.update { all ->
+                val merged = all.toMutableMap()
+                entries.forEach { e ->
+                    merged[e.sessionId] = merged.getOrDefault(e.sessionId, emptyList()) + e
+                }
+                merged
+            }
+        }
+
         override fun observeRecentSessions(): Flow<List<String>> =
             store.map { rows ->
                 rows.entries

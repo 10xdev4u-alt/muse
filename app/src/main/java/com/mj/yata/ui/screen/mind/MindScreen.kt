@@ -16,7 +16,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +31,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,11 +54,29 @@ fun MindScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val summaries by viewModel.sessionSummaries.collectAsStateWithLifecycle()
+    val deletedSessionId by viewModel.deletedSessionId.collectAsStateWithLifecycle()
+    var showHistory by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(entries.size) {
         if (entries.isNotEmpty()) listState.animateScrollToItem(entries.lastIndex)
+    }
+
+    LaunchedEffect(deletedSessionId) {
+        if (deletedSessionId != null) {
+            val result = snackbarHostState.showSnackbar(
+                message = "Session deleted",
+                actionLabel = "Undo",
+                withDismissAction = true
+            )
+            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                viewModel.undoDelete()
+            } else {
+                viewModel.dismissDeletedSnackbar()
+            }
+        }
     }
 
     LaunchedEffect(uiState.error) {
@@ -77,6 +100,24 @@ fun MindScreen(
                 .padding(padding)
                 .imePadding()
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Mind", style = MaterialTheme.typography.titleMedium)
+                Row {
+                    IconButton(onClick = { showHistory = true }) {
+                        Icon(Icons.Default.History, contentDescription = "History")
+                    }
+                    IconButton(onClick = viewModel::newSession) {
+                        Icon(Icons.Default.Add, contentDescription = "New session")
+                    }
+                }
+            }
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -117,6 +158,18 @@ fun MindScreen(
                     )
                 }
             }
+        }
+
+        if (showHistory) {
+            MindHistorySheet(
+                summaries = summaries,
+                onOpen = { id ->
+                    showHistory = false
+                    viewModel.openSession(id)
+                },
+                onDelete = viewModel::deleteSession,
+                onDismiss = { showHistory = false }
+            )
         }
     }
 }

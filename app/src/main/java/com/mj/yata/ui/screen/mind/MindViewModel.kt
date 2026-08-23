@@ -41,12 +41,22 @@ class MindViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MindUiState())
     val uiState: StateFlow<MindUiState> = _uiState.asStateFlow()
 
+    /** History rows for the session picker. */
+    val sessionSummaries: StateFlow<List<com.mj.yata.domain.model.JournalSessionSummary>> =
+        journalRepository.observeSessionSummaries()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Session id awaiting undo, surfaced by the screen as a snackbar action. */
+    private val _deletedSessionId = MutableStateFlow<String?>(null)
+    val deletedSessionId: StateFlow<String?> = _deletedSessionId.asStateFlow()
+
     /** Entries of the open session, straight from Room — screen text IS database text. */
     val entries: StateFlow<List<com.mj.yata.domain.model.JournalEntry>> = sessionId
         .flatMapLatest { journalRepository.observeSession(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var reflectJob: Job? = null
+    private var lastDeletedSnapshot: Pair<String, List<com.mj.yata.domain.model.JournalEntry>>? = null
 
     fun onInputChanged(text: String) {
         _uiState.update { it.copy(inputDraft = text) }
@@ -98,6 +108,43 @@ class MindViewModel @Inject constructor(
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun deleteSession(id: String) {
+        viewModelScope.launch {
+            try {
+                val snapshot = journalRepository.snapshotForRestore(id)
+                if (snapshot.isEmpty()) return@launch
+                journalRepository.deleteSession(id)
+                lastDeletedSnapshot = id to snapshot
+                if (sessionIdInternal.value == id) newSession()
+                _deletedSessionId.value = id
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = MindError.STORAGE) }
+            }
+        }
+    }
+
+    fun undoDelete() {
+        val snapshot = lastDeletedSnapshot ?: return
+        viewModelScope.launch {
+            try {
+                journalRepository.restoreSession(snapshot.second)
+                _deletedSessionId.value = null
+                lastDeletedSnapshot = null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = MindError.STORAGE) }
+            }
+        }
+    }
+
+    fun dismissDeletedSnackbar() {
+        _deletedSessionId.value = null
+        lastDeletedSnapshot = null
     }
 
     /**

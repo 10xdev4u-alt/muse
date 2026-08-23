@@ -27,6 +27,21 @@ class JournalRepositoryImpl @Inject constructor(
     override fun observeRecentSessions(): Flow<List<String>> =
         dao.observeRecentSessions()
 
+    override fun observeSessionSummaries(): Flow<List<com.mj.yata.domain.model.JournalSessionSummary>> =
+        db.journalSessionDao().observeSessionSummaries().map { rows ->
+            rows.map { com.mj.yata.domain.model.JournalSessionSummary(it.sessionId, it.startedAt, it.preview) }
+        }
+
+    override suspend fun snapshotForRestore(sessionId: String): List<JournalEntry> =
+        withContext(Dispatchers.IO) {
+            db.journalSessionDao().entriesForRestore(sessionId).map { it.toDomain() }
+        }
+
+    override suspend fun restoreSession(entries: List<JournalEntry>) =
+        withContext(Dispatchers.IO) {
+            db.journalSessionDao().restoreEntries(entries.map { it.toEntity() })
+        }
+
     override suspend fun appendUserEntry(
         sessionId: String,
         body: String,

@@ -22,9 +22,10 @@ import org.json.JSONArray
         TagGroupEntity::class,
         PersonGroupEntity::class,
         SubtaskEntity::class,
-        TaskCommentEntity::class
+        TaskCommentEntity::class,
+        JournalEntryEntity::class
     ],
-    version = 31,
+    version = 32,
     // Exported to app/schemas — gives migration tests real historical schemas to open, and lets
     // purely-additive future changes use Room auto-migrations instead of hand-written ones.
     exportSchema = true
@@ -39,6 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun personGroupDao(): PersonGroupDao
     abstract fun subtaskDao(): SubtaskDao
     abstract fun taskCommentDao(): TaskCommentDao
+    abstract fun journalDao(): JournalDao
 
     companion object {
         val MIGRATION_3_4 = object : Migration(3, 4) {
@@ -346,6 +348,29 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_29_30 = object : Migration(29, 30) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE tasks ADD COLUMN estimateMinutes INTEGER DEFAULT NULL")
+            }
+        }
+
+        val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `journal_entries` (
+                        `id` TEXT NOT NULL,
+                        `sessionId` TEXT NOT NULL,
+                        `role` TEXT NOT NULL,
+                        `body` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `moodTag` TEXT,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_journal_entries_sessionId` " +
+                        "ON `journal_entries` (`sessionId`)"
+                )
             }
         }
 

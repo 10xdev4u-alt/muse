@@ -1,0 +1,39 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+.kotlin/
+
+# Per-module build outputs
+**/build/
+
+# Log/Android Studio
+*.hprof
+
+# Keystore files
+*.jks
+*.keystore
+keystore.properties
+# Signing-key archives — same reason as the keystores themselves
+sign.7z
+*.7z
+
+# Scratch/debug dumps
+.codex_tmp/
+ui_*.xml
+graphify-out/
+
+# Coding-agent planning/handoff artifacts — not project documentation
+task.md
+walkthrough.md
+implementation_plan.md
+FEE_TRACKER_*.md
+
+# Design handoff reference (non-executable HTML/JSX prototype, not project source)
+design_handoff_yata/

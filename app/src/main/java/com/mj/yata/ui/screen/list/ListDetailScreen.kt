@@ -1,0 +1,842 @@
+package com.mj.yata.ui.screen.list
+
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.mj.yata.R
+import com.mj.yata.ui.widgets.showSuccess
+import com.mj.yata.ui.widgets.showError
+import com.mj.yata.domain.model.*
+import com.mj.yata.ui.screen.main.MainViewModel
+import com.mj.yata.ui.theme.LocalYataAccents
+import com.mj.yata.ui.widgets.DragDropReorderableColumn
+import com.mj.yata.ui.widgets.TaskRow
+import com.mj.yata.ui.widgets.TaskSectionHeader
+import com.mj.yata.ui.sheets.*
+import com.mj.yata.util.taskMatchesQuery
+import com.mj.yata.util.sortedByMode
+import com.mj.yata.util.export.toExportRow
+import kotlinx.coroutines.launch
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.tween
+import com.mj.yata.ui.theme.YataDur
+import com.mj.yata.ui.theme.yataItemFade
+import com.mj.yata.ui.theme.yataItemPlacement
+import com.mj.yata.ui.theme.YataEase
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+fun ListDetailScreen(
+    viewModel: MainViewModel,
+    listId: String,
+    onNavigateBack: () -> Unit,
+    onNavigateToTaskDetail: (String) -> Unit,
+    onNavigateToTab: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val lists by viewModel.lists.collectAsStateWithLifecycle()
+    val autoAssignToMe by viewModel.autoAssignToMe.collectAsStateWithLifecycle()
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val listTasks by remember(listId) { viewModel.getTasksForList(listId) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val allTasks by viewModel.tasks.collectAsStateWithLifecycle()
+    val people by viewModel.people.collectAsStateWithLifecycle()
+    val tags by viewModel.tags.collectAsStateWithLifecycle()
+    val taskRowDensity by viewModel.taskRowDensity.collectAsStateWithLifecycle()
+
+    val list = remember(lists, listId) { lists.find { it.id == listId } }
+    val accents = LocalYataAccents.current
+    val scope = rememberCoroutineScope()
+    val projectsById = remember(projects) { projects.associateBy { it.id } }
+    val tagsById = remember(tags) { tags.associateBy { it.id } }
+    val peopleById = remember(people) { people.associateBy { it.id } }
+    val defaultDueDate by viewModel.defaultDueDate.collectAsStateWithLifecycle()
+    val defaultPriority by viewModel.defaultPriority.collectAsStateWithLifecycle()
+    val exportContext = androidx.compose.ui.platform.LocalContext.current
+    var exportFormatPending by remember { mutableStateOf<com.mj.yata.util.export.ExportFormat?>(null) }
+    var exportInProgress by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // A list's tasks are already scoped to this one list, so the export's subheading groups
+    // by project instead (a list name heading would be redundant on every group here) —
+    // mirroring how ProjectDetailScreen groups by list for the same reason, just flipped.
+    fun exportGroupLabel(task: Task): String =
+        projectsById[task.projectId]?.name?.let { "Project - $it" } ?: ""
+
+    val exportTagErrorColor = MaterialTheme.colorScheme.error
+    fun exportTagChips(task: Task): List<com.mj.yata.util.export.ExportTagChip> =
+        task.effectiveTagIds(projectsById).mapNotNull { tagId ->
+            tagsById[tagId]?.let { t ->
+                val color = if (t.color == "error") exportTagErrorColor else accents.getAccent(t.color)
+                com.mj.yata.util.export.ExportTagChip(t.name, color)
+            }
+        }
+
+    fun exportAssigneeNames(task: Task): List<String> =
+        task.assigneeIds.mapNotNull { id -> peopleById[id]?.name }
+
+    var isNewTaskSheetOpen by remember { mutableStateOf(false) }
+    var isEditSheetOpen by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val hideCompleted by viewModel.hideCompletedList.collectAsStateWithLifecycle()
+    var searchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val showMissingList = com.mj.yata.ui.widgets.rememberMissingContentVisible(listId, list == null)
+    if (list == null) {
+        if (showMissingList) {
+            com.mj.yata.ui.widgets.MissingContentState(
+                itemName = stringResource(R.string.entity_list),
+                onNavigateBack = onNavigateBack
+            )
+        } else {
+            com.mj.yata.ui.widgets.ListDetailShimmer()
+        }
+        return
+    }
+
+    val listColor = accents.getAccent(list.color)
+    com.mj.yata.ui.theme.StatusBarColor(
+        listColor.copy(alpha = 0.18f).compositeOver(MaterialTheme.colorScheme.background)
+    )
+    val doneTasks = listTasks.count { it.done }
+    val openTasks = listTasks.size - doneTasks
+    // Split into Pending (draggable) / Completed (static) instead of one combined, interleaved
+    // list. Hiding completed drops both the tasks and the section headers entirely.
+    val sortMode by viewModel.sortModeList.collectAsStateWithLifecycle()
+    val pendingListTasks = remember(listTasks, sortMode) {
+        listTasks.filter { !it.done }.sortedByMode(sortMode)
+    }
+    val completedListTasks = remember(listTasks, hideCompleted) {
+        if (hideCompleted) emptyList() else listTasks.filter { it.done }
+    }
+    val searchFilteredTasks = remember(listTasks, searchQuery) {
+        if (searchQuery.isBlank()) emptyList() else listTasks.filter { taskMatchesQuery(it, searchQuery) }
+    }
+    var activeStatFilter by remember { mutableStateOf<com.mj.yata.ui.widgets.HeroStatKind?>(null) }
+    val heroToday = com.mj.yata.util.AppClock.today
+    val statFilteredTasks = remember(listTasks, activeStatFilter, heroToday) {
+        val filter = activeStatFilter ?: return@remember emptyList()
+        listTasks.filter { filter.matches(it, heroToday) }
+    }
+
+    // Not keyed on pendingListTasks — see ProjectDetailScreen for why: any task write anywhere
+    // in the app used to reset this mid-drag and discard/corrupt the in-progress reorder.
+    var localOrder by remember { mutableStateOf(pendingListTasks) }
+    var isDraggingTasks by remember { mutableStateOf(false) }
+    LaunchedEffect(pendingListTasks) {
+        if (!isDraggingTasks) localOrder = pendingListTasks
+    }
+    var pendingMoveTask by remember { mutableStateOf<Task?>(null) }
+    var pendingCommentTask by remember { mutableStateOf<Task?>(null) }
+
+    val selectedIds = remember { mutableStateListOf<String>() }
+    val selectionMode = selectedIds.isNotEmpty()
+    var showBulkTagSheet by remember { mutableStateOf(false) }
+    var showBulkMoveSheet by remember { mutableStateOf(false) }
+    var showBulkAssignSheet by remember { mutableStateOf(false) }
+    var showBulkRescheduleSheet by remember { mutableStateOf(false) }
+    var showBulkDeleteDialog by remember { mutableStateOf(false) }
+
+    val todayBadgeCount by viewModel.todayRemainingCount.collectAsStateWithLifecycle()
+    val peopleFeatureEnabled by viewModel.peopleFeatureEnabled.collectAsStateWithLifecycle()
+    val tagsFeatureEnabled by viewModel.tagsFeatureEnabled.collectAsStateWithLifecycle()
+    val projectsFeatureEnabled by viewModel.projectsFeatureEnabled.collectAsStateWithLifecycle()
+    val todayTabEnabled by viewModel.todayTabEnabled.collectAsStateWithLifecycle()
+    val upcomingTabEnabled by viewModel.upcomingTabEnabled.collectAsStateWithLifecycle()
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) { data -> com.mj.yata.ui.widgets.YataSnackbar(data) } },
+        bottomBar = {
+            com.mj.yata.ui.screen.main.CustomBottomNav(
+                selectedTab = -1,
+                todayBadgeCount = todayBadgeCount,
+                peopleEnabled = peopleFeatureEnabled,
+                tagsEnabled = tagsFeatureEnabled,
+                projectsEnabled = projectsFeatureEnabled,
+                todayEnabled = todayTabEnabled,
+                upcomingEnabled = upcomingTabEnabled,
+                onTabSelected = onNavigateToTab
+            )
+        },
+        topBar = {
+            if (selectionMode) {
+                TaskSelectionTopBar(
+                    selectedCount = selectedIds.size,
+                    onCancel = { selectedIds.clear() },
+                    onComplete = { viewModel.bulkCompleteTasks(selectedIds.toList()); selectedIds.clear() },
+                    onAddTag = { showBulkTagSheet = true },
+                    onMove = { showBulkMoveSheet = true },
+                    onReschedule = { showBulkRescheduleSheet = true },
+                    onDuplicate = { viewModel.bulkDuplicateTasks(selectedIds.toList()); selectedIds.clear() },
+                    onDelete = { showBulkDeleteDialog = true },
+                    onAssign = { showBulkAssignSheet = true },
+                    tagsEnabled = tagsFeatureEnabled,
+                    peopleEnabled = peopleFeatureEnabled,
+                    modifier = Modifier.statusBarsPadding()
+                )
+            } else {
+            // Title-less bar: the list name lives in the hero header below (per handoff's List Detail).
+            // Except while searching, where the title slot hosts the inline search field.
+            TopAppBar(
+                title = {
+                    if (searchActive) {
+                        val focusRequester = remember { FocusRequester() }
+                        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                            singleLine = true,
+                            placeholder = { Text(stringResource(R.string.search_in_list, list.name)) },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            )
+                        )
+                    }
+                },
+                navigationIcon = {
+                    com.mj.yata.ui.widgets.YataTopBarIconButton(onClick = {
+                        if (searchActive) {
+                            searchActive = false
+                            searchQuery = ""
+                        } else {
+                            onNavigateBack()
+                        }
+                    }) {
+                        Icon(Icons.AutoMirrored.Default.ArrowBack, contentDescription = if (searchActive) "Close search" else "Back")
+                    }
+                },
+                actions = {
+                    // Wrapped so the circular containers get the same 8dp gap they have on the
+                    // main tabs — the actions slot packs its children flush, which reads as one
+                    // long pill once the buttons are filled rather than plain.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                    if (searchActive) {
+                        if (searchQuery.isNotEmpty()) {
+                            com.mj.yata.ui.widgets.YataTopBarIconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_clear_search))
+                            }
+                        }
+                    } else {
+                        com.mj.yata.ui.widgets.YataTopBarIconButton(onClick = { searchActive = true }) {
+                            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.list_detail_search_in_list))
+                        }
+                        // Left as an action button rather than the toggle variant: the star already
+                        // signals its state through the accent colour, and a filled container
+                        // behind a gold star would be two state signals fighting each other.
+                        com.mj.yata.ui.widgets.YataTopBarIconButton(onClick = { viewModel.toggleListStarred(list.id) }) {
+                            Icon(
+                                imageVector = if (list.starred) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                                contentDescription = if (list.starred) "Unstar list" else "Star list",
+                                tint = if (list.starred) accents.accentD else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        com.mj.yata.ui.widgets.TaskSortMenuButton(
+                            current = sortMode,
+                            onSelect = { viewModel.setSortModeList(it) },
+                            filledContainer = true
+                        )
+                        com.mj.yata.ui.widgets.YataTopBarIconToggleButton(
+                            checked = hideCompleted,
+                            onCheckedChange = { viewModel.setHideCompletedList(it) }
+                        ) {
+                            Icon(
+                                imageVector = if (hideCompleted) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (hideCompleted) "Show completed tasks" else "Hide completed tasks"
+                            )
+                        }
+                        var showMenu by remember { mutableStateOf(false) }
+                        Box {
+                        com.mj.yata.ui.widgets.YataTopBarIconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.cd_more_options))
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.list_detail_edit_list)) },
+                                onClick = {
+                                    showMenu = false
+                                    isEditSheetOpen = true
+                                },
+                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_export_as_image)) },
+                                onClick = {
+                                    showMenu = false
+                                    exportFormatPending = com.mj.yata.util.export.ExportFormat.IMAGE
+                                },
+                                leadingIcon = { Icon(Icons.Default.Image, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_export_as_pdf)) },
+                                onClick = {
+                                    showMenu = false
+                                    exportFormatPending = com.mj.yata.util.export.ExportFormat.PDF
+                                },
+                                leadingIcon = { Icon(Icons.Default.PictureAsPdf, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.list_detail_delete_list)) },
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteDialog = true
+                                },
+                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                            )
+                        }
+                        }
+                    }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = listColor.copy(alpha = 0.18f)
+                )
+            )
+            }
+        },
+        floatingActionButton = {
+            com.mj.yata.ui.widgets.PressableScaleBox(
+                onClick = { isNewTaskSheetOpen = true }
+            ) {
+                Surface(
+                    color = listColor,
+                    contentColor = accents.onAccentFor(listColor),
+                    shape = RoundedCornerShape(16.dp),
+                    tonalElevation = 6.dp,
+                    shadowElevation = 6.dp
+                ) {
+                    Box(
+                        modifier = Modifier.size(56.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add_task))
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+        val progress = if (listTasks.isNotEmpty()) doneTasks.toFloat() / listTasks.size else 0f
+        val overdueCount = remember(listTasks) { com.mj.yata.util.AnalyticsUtils.overdueCount(listTasks) }
+        val highPriorityCount = remember(listTasks) { listTasks.count { !it.done && it.priority == "high" } }
+        val todayStr = com.mj.yata.util.AppClock.todayString
+        val dueTodayCount = remember(listTasks, todayStr) { listTasks.count { !it.done && it.due == todayStr } }
+
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
+        ) {
+            // 1. Hero header — icon tile, list name, progress ring, plus overdue/high-priority/
+            // due-today stats (per handoff's List Detail, extended to match Person/Project/Tag).
+            com.mj.yata.ui.widgets.EntityHeroSection(
+                accentColor = listColor,
+                progress = progress,
+                primaryText = "$openTasks open · $doneTasks completed",
+                overdueCount = overdueCount,
+                highPriorityCount = highPriorityCount,
+                dueTodayCount = dueTodayCount,
+                nameText = list.name,
+                leadingContent = {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(listColor.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = com.mj.yata.ui.widgets.iconVectorFor(list.icon),
+                            contentDescription = null,
+                            tint = listColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                },
+                ringSize = 48.dp,
+                activeFilter = activeStatFilter,
+                onStatClick = { activeStatFilter = if (activeStatFilter == it) null else it }
+            )
+
+            // 2. Tasks list — Pending (drag-to-reorder, or drag to the top/bottom edge to move
+            // to another list/project) above a static Completed section. While searching, drag
+            // reorder is disabled (see ProjectDetailScreen for why) and it falls back to a flat
+            // matched list.
+            @Composable
+            fun taskRowFor(task: Task, modifier: Modifier = Modifier) {
+                val taskAssignees = remember(task.assigneeIds, peopleById, peopleFeatureEnabled) {
+                    if (peopleFeatureEnabled) task.assigneeIds.mapNotNull { pid -> peopleById[pid] } else emptyList()
+                }
+                val taskTags = remember(task, projectsById, tagsById, tagsFeatureEnabled) {
+                    if (tagsFeatureEnabled) task.effectiveTags(projectsById, tagsById) else emptyList()
+                }
+
+                TaskRow(
+                    task = task,
+                    list = list,
+                    assignees = taskAssignees,
+                    tags = taskTags,
+                    onToggleDone = { viewModel.toggleTaskDone(task.id) {} },
+                    onTaskClick = {
+                        if (selectionMode) {
+                            if (selectedIds.contains(task.id)) selectedIds.remove(task.id) else selectedIds.add(task.id)
+                        } else {
+                            onNavigateToTaskDetail(task.id)
+                        }
+                    },
+                    selectionMode = selectionMode,
+                    selected = selectedIds.contains(task.id),
+                    onLongClick = { if (!selectedIds.contains(task.id)) selectedIds.add(task.id) },
+                    modifier = modifier,
+                    showList = false,
+                    onCommentClick = { pendingCommentTask = task },
+                    onQuickSnooze = { viewModel.quickSnoozeTask(task.id, it) },
+                    onRenameTask = { viewModel.renameTask(task.id, it) },
+                    density = taskRowDensity,
+                    showDueDate = true
+                )
+            }
+
+            if (activeStatFilter != null) {
+                com.mj.yata.ui.widgets.ActiveFilterBanner(
+                    kind = activeStatFilter!!,
+                    onClear = { activeStatFilter = null }
+                )
+            }
+
+            if (selectionMode) {
+                // See ProjectDetailScreen for why selection mode falls back to a flat,
+                // non-draggable list instead of DragDropReorderableColumn.
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp)
+                ) {
+                    if (!hideCompleted && pendingListTasks.isNotEmpty()) {
+                        item(key = "sel_pending_header") { TaskSectionHeader("PENDING", pendingListTasks.size) }
+                    }
+                    items(pendingListTasks, key = { "sel_pending_" + it.id }) { task -> taskRowFor(task) }
+                    if (!hideCompleted && completedListTasks.isNotEmpty()) {
+                        item(key = "sel_completed_header") { TaskSectionHeader("COMPLETED", completedListTasks.size) }
+                        items(completedListTasks, key = { "sel_completed_" + it.id }) { task -> taskRowFor(task) }
+                    }
+                }
+            } else if (searchActive) {
+                if (searchQuery.isBlank()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Type to search tasks in this list.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                } else if (searchFilteredTasks.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No matching tasks.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(bottom = 88.dp)
+                    ) {
+                        items(searchFilteredTasks, key = { it.id }) { task -> taskRowFor(task) }
+                    }
+                }
+            } else if (activeStatFilter != null) {
+                if (statFilteredTasks.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.task_filter_no_matches),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(bottom = 88.dp)
+                    ) {
+                        items(statFilteredTasks, key = { it.id }) { task -> taskRowFor(task) }
+                    }
+                }
+            } else if (pendingListTasks.isEmpty() && completedListTasks.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (listTasks.isEmpty()) "No tasks in this list." else "All tasks completed.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+            } else {
+                val showPendingHeader = !hideCompleted && pendingListTasks.isNotEmpty()
+                DragDropReorderableColumn(
+                    items = localOrder,
+                    key = { it.id },
+                    onMove = { from, to -> localOrder = localOrder.toMutableList().apply { add(to, removeAt(from)) } },
+                    onDragEnd = { viewModel.commitTaskOrder(localOrder) },
+                    onDragToTopEdge = { task -> pendingMoveTask = task },
+                    onDragToBottomEdge = { task -> pendingMoveTask = task },
+                    onDragStateChanged = { isDraggingTasks = it },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                    headerItemCount = if (showPendingHeader) 1 else 0,
+                    header = {
+                        if (showPendingHeader) {
+                            item(key = "pending_header") { TaskSectionHeader("PENDING", pendingListTasks.size) }
+                        }
+                    },
+                    footer = {
+                        if (!hideCompleted && completedListTasks.isNotEmpty()) {
+                            item(key = "completed_header") { TaskSectionHeader("COMPLETED", completedListTasks.size) }
+                            items(completedListTasks, key = { "completed_" + it.id }) { task ->
+                                taskRowFor(
+                                    task = task,
+                                    modifier = Modifier.animateItem(fadeInSpec = yataItemFade, placementSpec = yataItemPlacement, fadeOutSpec = yataItemFade
+                                    )
+                                )
+                            }
+                        }
+                    }
+                ) { task -> taskRowFor(task) }
+            }
+        }
+    }
+
+    pendingMoveTask?.let { task ->
+        ModalBottomSheet(
+            onDismissRequest = { pendingMoveTask = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskMoveToPickerSheet(
+                lists = lists.filter { it.id != list.id },
+                projects = projects,
+                onSelectList = { targetListId ->
+                    viewModel.moveTaskToList(task.id, targetListId, null)
+                    pendingMoveTask = null
+                },
+                onSelectProject = { targetProjectId ->
+                    viewModel.moveTaskToList(task.id, null, targetProjectId)
+                    pendingMoveTask = null
+                }
+            )
+        }
+    }
+
+    pendingCommentTask?.let { task ->
+        com.mj.yata.ui.widgets.QuickCommentDialog(
+            taskTitle = task.title,
+            onSubmit = { body ->
+                viewModel.addComment(task.id, body)
+                pendingCommentTask = null
+            },
+            onDismiss = { pendingCommentTask = null }
+        )
+    }
+
+    if (showBulkTagSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulkTagSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskBulkTagPickerSheet(
+                tags = tags,
+                onSelectTag = { tagId ->
+                    viewModel.bulkAddTag(selectedIds.toList(), tagId)
+                    selectedIds.clear()
+                    showBulkTagSheet = false
+                },
+                onDismiss = { showBulkTagSheet = false }
+            )
+        }
+    }
+
+    if (showBulkAssignSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulkAssignSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskBulkAssignPersonSheet(
+                people = people,
+                tasks = allTasks,
+                todayStr = com.mj.yata.util.AppClock.todayString,
+                onSelectPerson = { personId ->
+                    viewModel.bulkAssignPerson(selectedIds.toList(), personId)
+                    selectedIds.clear()
+                    showBulkAssignSheet = false
+                },
+                onDismiss = { showBulkAssignSheet = false }
+            )
+        }
+    }
+
+    if (showBulkMoveSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulkMoveSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskBulkMoveSheet(
+                projects = projects,
+                lists = lists,
+                onSelectProject = { targetProjectId ->
+                    viewModel.bulkSetProject(selectedIds.toList(), targetProjectId)
+                    selectedIds.clear()
+                    showBulkMoveSheet = false
+                },
+                onSelectList = { targetListId ->
+                    viewModel.bulkSetList(selectedIds.toList(), targetListId)
+                    selectedIds.clear()
+                    showBulkMoveSheet = false
+                },
+                onDismiss = { showBulkMoveSheet = false },
+                projectsEnabled = projectsFeatureEnabled
+            )
+        }
+    }
+
+    if (showBulkRescheduleSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulkRescheduleSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskBulkRescheduleSheet(
+                onSelectPreset = { preset ->
+                    viewModel.bulkRescheduleTasks(selectedIds.toList(), preset)
+                    selectedIds.clear()
+                    showBulkRescheduleSheet = false
+                },
+                onDismiss = { showBulkRescheduleSheet = false }
+            )
+        }
+    }
+
+    if (showBulkDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showBulkDeleteDialog = false },
+            title = { Text(pluralStringResource(R.plurals.confirm_delete_tasks_title, selectedIds.size, selectedIds.size)) },
+            text = { Text(stringResource(R.string.action_this_can_t_be_undone)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.bulkDeleteTasks(selectedIds.toList())
+                    selectedIds.clear()
+                    showBulkDeleteDialog = false
+                }) {
+                    Text(stringResource(R.string.cd_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkDeleteDialog = false }) { Text(stringResource(R.string.action_cancel)) }
+            }
+        )
+    }
+
+    if (isNewTaskSheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { isNewTaskSheetOpen = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            NewTaskSheet(
+                lists = listOf(list), // Force this list
+                projects = projects,
+                people = people,
+                tags = tags,
+                tasks = allTasks,
+                initialListId = list.id,
+                onAddTask = { draft ->
+                    viewModel.addTask(draft)
+                    isNewTaskSheetOpen = false
+                },
+                onGoToExistingTask = { id ->
+                    isNewTaskSheetOpen = false
+                    onNavigateToTaskDetail(id)
+                },
+                autoAssignToMe = autoAssignToMe,
+                onCreateTag = { id, name, color ->
+                    viewModel.upsertTag(com.mj.yata.domain.model.Tag(id = id, name = name, color = color))
+                },
+                onCreatePerson = { id, name, color ->
+                    viewModel.upsertPerson(
+                        com.mj.yata.domain.model.Person(id = id, name = name, initials = com.mj.yata.ui.sheets.initialsFor(name), color = color, isMe = false)
+                    )
+                },
+                onDismiss = { isNewTaskSheetOpen = false },
+                projectsEnabled = projectsFeatureEnabled,
+                tagsEnabled = tagsFeatureEnabled,
+                peopleEnabled = peopleFeatureEnabled,
+                defaultDueDate = defaultDueDate,
+                defaultPriority = defaultPriority
+            )
+        }
+    }
+
+    if (isEditSheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { isEditSheetOpen = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            ListEditorSheet(
+                initialName = list.name,
+                initialColor = list.color,
+                initialIcon = list.icon,
+                initialExcludeFromToday = list.excludeFromToday,
+                onSave = { newName, newColor, newIcon, newExcludeFromToday ->
+                    viewModel.upsertList(list.copy(name = newName, color = newColor, icon = newIcon, excludeFromToday = newExcludeFromToday))
+                    isEditSheetOpen = false
+                },
+                onDismiss = { isEditSheetOpen = false }
+            )
+        }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.list_detail_delete_list_2)) },
+            text = { Text(stringResource(R.string.list_detail_all_tasks_inside_this_list_will_be_permane)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteList(list)
+                        onNavigateBack()
+                    }
+                ) {
+                    Text(stringResource(R.string.cd_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    exportFormatPending?.let { format ->
+        com.mj.yata.util.export.ExportOptionsDialog(
+            entityName = list.name,
+            format = format,
+            itemPreviews = listTasks.map { com.mj.yata.util.export.ExportItemPreview(it.done, it.completedAt) },
+            onDismiss = { exportFormatPending = null },
+            onConfirm = { options ->
+                exportFormatPending = null
+                val cutoffMillis = options.excludeCompletedOlderThanDays?.takeIf { it > 0 }?.let {
+                    System.currentTimeMillis() - it.toLong() * 24 * 60 * 60 * 1000
+                }
+                val exportTasks = listTasks.filter { task ->
+                    if (!task.done) return@filter true
+                    if (!options.includeCompleted) return@filter false
+                    cutoffMillis == null || (task.completedAt != null && task.completedAt >= cutoffMillis)
+                }
+                scope.launch {
+                    exportInProgress = true
+                    val exportResult = runCatching {
+                        com.mj.yata.util.export.exportEntityReport(
+                            context = exportContext,
+                            format = format,
+                            entityKind = "List",
+                            entityName = list.name,
+                            accentColor = listColor,
+                            doneCount = exportTasks.count { it.done },
+                            totalCount = exportTasks.size,
+                            overdueCount = com.mj.yata.util.AnalyticsUtils.overdueCount(exportTasks),
+                            tasks = exportTasks.map { task ->
+                                task.toExportRow(
+                                    exportGroupLabel(task),
+                                    if (options.showTags) exportTagChips(task) else emptyList(),
+                                    if (options.showAssignees) exportAssigneeNames(task) else emptyList()
+                                )
+                            },
+                            layoutDensity = options.density,
+                            strikeThroughCompleted = options.strikeThroughCompleted,
+                            showTags = options.showTags,
+                            showAssignees = options.showAssignees,
+                            showMadeWithFooter = options.showMadeWithFooter,
+                            destination = options.destination,
+                            fileNameBase = options.fileNameBase,
+                            pdfPageSize = options.pdfPageSize,
+                            imageScale = options.imageScale
+                        )
+                    }
+                    exportInProgress = false
+                    exportResult.onSuccess { outcome ->
+                        snackbarHostState.showSuccess(outcome.userMessage())
+                    }.onFailure { error ->
+                        snackbarHostState.showError(error.message ?: exportContext.getString(R.string.export_failed))
+                    }
+                }
+            }
+        )
+    }
+    if (exportInProgress) {
+        com.mj.yata.util.export.ExportProgressDialog()
+    }
+}
+
+

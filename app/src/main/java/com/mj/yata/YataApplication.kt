@@ -10,6 +10,8 @@ import dagger.hilt.android.HiltAndroidApp
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
+import androidx.lifecycle.ProcessLifecycleOwner
+import com.mj.yata.data.mind.MindLifecycleGuard
 import javax.inject.Inject
 
 import com.mj.yata.util.AppClock
@@ -24,6 +26,7 @@ import java.time.LocalDateTime
 @HiltAndroidApp
 class YataApplication : Application(), Configuration.Provider {
 
+    @Inject lateinit var mindLifecycleGuard: MindLifecycleGuard
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var userPreferences: com.mj.yata.data.local.datastore.UserPreferences
     @Inject lateinit var crashLogStore: com.mj.yata.data.local.crash.CrashLogStore
@@ -32,6 +35,9 @@ class YataApplication : Application(), Configuration.Provider {
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
+        // Mind RAM guardrail: unload the model after 60s backgrounded (#24).
+        mindLifecycleGuard.registerWithProcessLifecycle()
+
         super.onCreate()
 
         // sshj (SFTP backup) needs Bouncy Castle for algorithms Android's stock security

@@ -83,6 +83,8 @@ fun MindScreen(
     LaunchedEffect(uiState.error) {
         val message = when (uiState.error) {
             MindError.ENGINE -> "Reflection failed mid-turn. Partial answer kept."
+            MindError.MODEL_MISSING -> "Model files missing. Open Settings to download."
+            MindError.OFFLINE -> "This step needs a connection. Try again once online."
             MindError.STORAGE -> "Could not save to the journal."
             null -> null
         }

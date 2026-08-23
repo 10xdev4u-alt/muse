@@ -96,7 +96,9 @@ class MindViewModel @Inject constructor(
                 _uiState.update { it.copy(isReflecting = false) }
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(isReflecting = false, error = MindError.ENGINE) }
+                _uiState.update {
+                    it.copy(isReflecting = false, error = com.mj.yata.data.mind.xybridErrorToMindError(e))
+                }
             }
         }
         _uiState.update { it.copy(inputDraft = "", isReflecting = true) }

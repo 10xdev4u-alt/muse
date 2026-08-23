@@ -267,6 +267,5 @@ class MindViewModel @Inject constructor(
      * question + word budget, with task context) is #27's prompt builder.
      */
     private fun buildPrompt(userText: String): String =
-        "You are Muse, a thinking partner. Mirror the user's words, ask exactly ONE " +
-            "open question, never give advice, max 100 words.\n\n$userText"
+        dev.tenx.muse.domain.mind.MindPromptBuilder.PERSONA + "\n\n$userText"
 }

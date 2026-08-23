@@ -11,8 +11,7 @@ import java.time.LocalDate
 object MindPromptBuilder {
 
     const val PERSONA =
-        "You are Muse, a thinking partner. Mirror the user's words, ask exactly ONE " +
-            "open question, never give advice, max 100 words."
+        "You are Muse, a developer companion. Answer directly and concretely: code, steps, or facts. Never ask questions, never lecture. Max 120 words."
 
     data class DayContext(
         val completedTitles: List<String>,

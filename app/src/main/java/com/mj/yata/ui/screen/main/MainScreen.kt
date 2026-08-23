@@ -96,6 +96,7 @@ fun MainScreen(
 ) {
     val scope = rememberCoroutineScope()
     val undoWindowSeconds = com.mj.yata.ui.widgets.LocalUndoWindowSeconds.current
+    val mindFeatureEnabled by viewModel.mindFeatureEnabled.collectAsStateWithLifecycle()
     val defaultDueDate by viewModel.defaultDueDate.collectAsStateWithLifecycle()
     val autoAssignToMe by viewModel.autoAssignToMe.collectAsStateWithLifecycle()
     val defaultPriority by viewModel.defaultPriority.collectAsStateWithLifecycle()
@@ -360,7 +361,17 @@ fun MainScreen(
                             scope.launch { drawerState.close() }
                         }
                     }
-                    if (projectsFeatureEnabled) {
+                    if (mindFeatureEnabled) {
+                        item {
+                            DrawerItem(stringResource(R.string.tab_mind), Icons.Default.Psychology, false) {
+                                navController.navigate(com.mj.yata.ui.navigation.Screen.Mind.route) {
+                                    launchSingleTop = true
+                                }
+                                scope.launch { drawerState.close() }
+                            }
+                        }
+                    }
+                                        if (projectsFeatureEnabled) {
                         item {
                             DrawerItem(stringResource(R.string.tab_projects), Icons.Default.Layers, selectedTab == 1) {
                                 selectedTab = 1

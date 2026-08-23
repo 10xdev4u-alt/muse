@@ -20,6 +20,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.mj.yata.ui.screen.mind.MindScreen
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
@@ -285,6 +286,10 @@ fun AppNavigation(
         }
 
         // ── Settings ─────────────────────────────────────────────────────────
+        composable(Screen.Mind.route) {
+            MindScreen()
+        }
+
         composable(Screen.Settings.route) { backStackEntry ->
             val viewModel: MainViewModel = backStackEntry.sharedViewModel(navController)
             SettingsScreen(

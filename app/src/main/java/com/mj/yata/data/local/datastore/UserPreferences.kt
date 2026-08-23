@@ -134,6 +134,7 @@ class UserPreferences @Inject constructor(
         val UI_SCALE                = floatPreferencesKey("ui_scale")
         val DYNAMIC_COLOR_ENABLED   = booleanPreferencesKey("dynamic_color_enabled")
         val PEOPLE_FEATURE_ENABLED   = booleanPreferencesKey("people_feature_enabled")
+        val MIND_FEATURE_ENABLED     = booleanPreferencesKey("mind_feature_enabled")
         val TAGS_FEATURE_ENABLED     = booleanPreferencesKey("tags_feature_enabled")
         val PROJECTS_FEATURE_ENABLED = booleanPreferencesKey("projects_feature_enabled")
         val CLOUD_BACKUP_INTERVAL_MINUTES = longPreferencesKey("cloud_backup_interval_minutes")
@@ -369,6 +370,9 @@ class UserPreferences @Inject constructor(
     val uiScaleFlow: Flow<Float> = prefsFlow.map { it[UI_SCALE] ?: 1.0f }
     val dynamicColorEnabledFlow: Flow<Boolean> = prefsFlow.map { it[DYNAMIC_COLOR_ENABLED] ?: true }
     val peopleFeatureEnabledFlow: Flow<Boolean> = prefsFlow.map { it[PEOPLE_FEATURE_ENABLED] ?: true }
+
+    /** Mind tab gate. Default OFF until the real runtime lands (#20); then flips on. */
+    val mindFeatureEnabledFlow: Flow<Boolean> = prefsFlow.map { it[MIND_FEATURE_ENABLED] ?: false }
     val tagsFeatureEnabledFlow: Flow<Boolean> = prefsFlow.map { it[TAGS_FEATURE_ENABLED] ?: true }
     val projectsFeatureEnabledFlow: Flow<Boolean> = prefsFlow.map { it[PROJECTS_FEATURE_ENABLED] ?: true }
     // Default matches the old periodic backup schedule (1 day) — WorkManager enforces a

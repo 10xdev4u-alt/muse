@@ -1,6 +1,6 @@
 package com.mj.yata.di
 
-import com.mj.yata.data.mind.FakeReflectionEngine
+import com.mj.yata.data.mind.XybridRuntime
 import com.mj.yata.domain.mind.ReflectionEngine
 import dagger.Binds
 import dagger.Module
@@ -9,13 +9,18 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * Binds the fake engine for Phase 2. Phase 3 (#20) swaps this binding to the
- * real XybridRuntime — one line here, zero UI changes.
+ * Binds the REAL runtime as of #20. The fake lives on at
+ * data/mind/FakeReflectionEngine.kt for tests and emulator-only UI work —
+ * swap this single binding back to use it.
+ *
+ * NOTE: Mind tab stays flag-OFF in UserPreferences until the downloader
+ * (#21) ships; prepare() throws a clear "model not downloaded" if flipped
+ * on early, which surfaces as an ENGINE error rather than a hang.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class MindModule {
 
     @Binds @Singleton
-    abstract fun bindReflectionEngine(impl: FakeReflectionEngine): ReflectionEngine
+    abstract fun bindReflectionEngine(impl: XybridRuntime): ReflectionEngine
 }

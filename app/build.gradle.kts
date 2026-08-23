@@ -264,6 +264,9 @@ dependencies {
     // Navigation
     implementation(libs.navigation.compose)
 
+    // On-device AI runtime (Xybrid)
+    implementation(libs.xybrid.kotlin)
+
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

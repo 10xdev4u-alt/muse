@@ -531,6 +531,7 @@ fun SettingsScreen(
             contentPadding = PaddingValues(top = 20.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+                        item { MindModelCard() }
             if (isSettingsRoot) {
                 item(key = "settings_search") {
                     SettingsSearchField(

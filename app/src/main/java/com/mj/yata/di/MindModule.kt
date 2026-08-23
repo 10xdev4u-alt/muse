@@ -4,8 +4,12 @@ import com.mj.yata.data.mind.ModelAcquisition
 import com.mj.yata.data.mind.ModelDownloader
 import com.mj.yata.data.mind.XybridRuntime
 import com.mj.yata.domain.mind.ReflectionEngine
+import com.mj.yata.domain.mind.ReviewDayStore
+import com.mj.yata.domain.repository.YataRepository
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
+import kotlinx.coroutines.flow.first
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -28,4 +32,14 @@ abstract class MindModule {
 
     @Binds @Singleton
     abstract fun bindModelAcquisition(impl: ModelDownloader): ModelAcquisition
+
+    @Binds @Singleton
+    abstract fun bindReviewDayStore(impl: com.mj.yata.data.mind.ReviewDayStoreImpl): ReviewDayStore
+
+    companion object {
+        /** Mind reads today's reality through one narrow seam, not the whole repo. */
+        @Provides
+        fun provideTasksProvider(repo: YataRepository): com.mj.yata.domain.mind.TasksProvider =
+            com.mj.yata.domain.mind.TasksProvider { repo.getTasks().first() }
+    }
 }

@@ -3,6 +3,7 @@ package com.mj.yata.ui.screen.mind
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mj.yata.domain.mind.MindError
+import com.mj.yata.domain.mind.ReviewDayStore
 import com.mj.yata.domain.mind.ReflectionEngine
 import com.mj.yata.domain.repository.JournalRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,7 +33,9 @@ data class MindUiState(
 class MindViewModel @Inject constructor(
     private val journalRepository: JournalRepository,
     private val reflectionEngine: ReflectionEngine,
-    val modelDownloader: com.mj.yata.data.mind.ModelAcquisition
+    val modelDownloader: com.mj.yata.data.mind.ModelAcquisition,
+    private val tasksProvider: com.mj.yata.domain.mind.TasksProvider,
+    private val reviewPrefs: ReviewDayStore
 ) : ViewModel() {
 
     private val sessionIdInternal = MutableStateFlow(UUID.randomUUID().toString())
@@ -111,6 +115,56 @@ class MindViewModel @Inject constructor(
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    /** True while the once-a-day review is generating. */
+    private val _isReviewing = MutableStateFlow(false)
+    val isReviewing: StateFlow<Boolean> = _isReviewing.asStateFlow()
+
+    /**
+     * Runs the grounded daily review at most once per calendar day (#28/#29):
+     * buckets today's real tasks, streams three numbered reflection prompts,
+     * and persists them as an assistant entry in a dedicated per-day session
+     * so history groups reviews like any other exchange.
+     */
+    fun maybeRunDailyReview(today: java.time.LocalDate = java.time.LocalDate.now()) {
+        viewModelScope.launch {
+            try {
+                val todayStr = today.toString()
+                if (reviewPrefs.lastReviewDay() == todayStr) return@launch
+
+                val dayContext = com.mj.yata.domain.mind.MindPromptBuilder
+                    .dayContextFrom(tasksProvider.all(), today)
+                if (dayContext.completedTitles.isEmpty() &&
+                    dayContext.pendingTitles.isEmpty() && dayContext.overdueCount == 0
+                ) {
+                    // Nothing to reflect on yet; retry on a later visit today.
+                    return@launch
+                }
+
+                _isReviewing.value = true
+                val reviewSessionId = "daily-review-$todayStr"
+                sessionIdInternal.value = reviewSessionId
+
+                val reply = journalRepository.beginAssistantReply(reviewSessionId)
+                var accumulated = ""
+                reflectionEngine
+                    .reflect(
+                        com.mj.yata.domain.mind.MindPromptBuilder.buildDailyReviewPrompt(dayContext)
+                    )
+                    .collect { token ->
+                        accumulated += token
+                        journalRepository.updateAssistantBody(reply.id, accumulated)
+                    }
+                reviewPrefs.setLastReviewDay(todayStr)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = MindError.ENGINE) }
+            } finally {
+                _isReviewing.value = false
+            }
+        }
     }
 
     /** Sheet visibility: explicit MODEL_MISSING error, or first visit with nothing on disk. */

@@ -61,6 +61,8 @@ fun MindScreen(
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    LaunchedEffect(Unit) { viewModel.maybeRunDailyReview() }
+
     LaunchedEffect(entries.size) {
         if (entries.isNotEmpty()) listState.animateScrollToItem(entries.lastIndex)
     }

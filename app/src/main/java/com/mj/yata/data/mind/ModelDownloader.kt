@@ -39,6 +39,13 @@ sealed class DownloadState {
     enum class Reason { INSUFFICIENT_STORAGE, METERED_BLOCKED, CHECKSUM_MISMATCH, NETWORK }
 }
 
+/** What the MindViewModel may know about model acquisition — nothing about HTTP. */
+interface ModelAcquisition {
+    val state: StateFlow<DownloadState>
+    fun isModelPresent(): Boolean
+    suspend fun download()
+}
+
 /**
  * One-time GGUF fetch into XybridRuntime.modelDir, with HTTP Range resume,
  * streaming SHA256 verification against the pinned hash from
@@ -51,14 +58,14 @@ sealed class DownloadState {
 @Singleton
 class ModelDownloader @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : ModelAcquisition {
     private val _state = MutableStateFlow<DownloadState>(DownloadState.Idle)
-    val state: StateFlow<DownloadState> = _state.asStateFlow()
+    override val state: StateFlow<DownloadState> = _state.asStateFlow()
 
     val modelDir: File
         get() = File(context.filesDir, "xybrid/${XybridRuntime.MODEL_ID}").apply { mkdirs() }
 
-    fun isModelPresent(): Boolean =
+    override fun isModelPresent(): Boolean =
         modelDir.resolve("model_metadata.json").isFile &&
             modelDir.listFiles()?.any { it.name.endsWith(".gguf") } == true
 
@@ -67,7 +74,7 @@ class ModelDownloader @Inject constructor(
     @VisibleForTesting
     fun stateSinkForTests(): MutableStateFlow<DownloadState> = _state
 
-    suspend fun download() {
+    override suspend fun download() {
         try {
             withContext(Dispatchers.IO) {
                 val dir = modelDir

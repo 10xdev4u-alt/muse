@@ -31,7 +31,7 @@ data class MindUiState(
 class MindViewModel @Inject constructor(
     private val journalRepository: JournalRepository,
     private val reflectionEngine: ReflectionEngine,
-    val modelDownloader: com.mj.yata.data.mind.ModelDownloader
+    val modelDownloader: com.mj.yata.data.mind.ModelAcquisition
 ) : ViewModel() {
 
     private val sessionIdInternal = MutableStateFlow(UUID.randomUUID().toString())

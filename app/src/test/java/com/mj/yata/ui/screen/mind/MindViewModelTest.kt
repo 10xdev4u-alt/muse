@@ -47,9 +47,18 @@ class MindViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private class FakeAcquisition : com.mj.yata.data.mind.ModelAcquisition {
+        override val state =
+            kotlinx.coroutines.flow.MutableStateFlow<com.mj.yata.data.mind.DownloadState>(
+                com.mj.yata.data.mind.DownloadState.Idle
+            )
+        override fun isModelPresent(): Boolean = true
+        override suspend fun download() = Unit
+    }
+
     private fun install(engine: ReflectionEngine): String {
         repository = FakeJournalRepository()
-        viewModel = MindViewModel(repository, engine)
+        viewModel = MindViewModel(repository, engine, FakeAcquisition())
         return viewModel.sessionId.value
     }
 

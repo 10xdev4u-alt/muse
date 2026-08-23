@@ -30,7 +30,8 @@ data class MindUiState(
 @HiltViewModel
 class MindViewModel @Inject constructor(
     private val journalRepository: JournalRepository,
-    private val reflectionEngine: ReflectionEngine
+    private val reflectionEngine: ReflectionEngine,
+    val modelDownloader: com.mj.yata.data.mind.ModelDownloader
 ) : ViewModel() {
 
     private val sessionIdInternal = MutableStateFlow(UUID.randomUUID().toString())
@@ -109,6 +110,34 @@ class MindViewModel @Inject constructor(
     }
 
     fun dismissError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
+    /** Sheet visibility: explicit MODEL_MISSING error, or first visit with nothing on disk. */
+    val showDownloadSheet: StateFlow<Boolean> = kotlinx.coroutines.flow.combine(
+        _uiState,
+        modelDownloader.state
+    ) { ui, download ->
+        ui.error == MindError.MODEL_MISSING ||
+            (!modelDownloader.isModelPresent() &&
+                download == com.mj.yata.data.mind.DownloadState.Idle)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    private var downloadJob: Job? = null
+
+    fun startDownload() {
+        if (downloadJob?.isActive == true) return
+        downloadJob = viewModelScope.launch { modelDownloader.download() }
+    }
+
+    /** Pause keeps the .part file; next start resumes from byte offset. */
+    fun pauseDownload() {
+        downloadJob?.cancel()
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun dismissDownloadSheet() {
+        // Only dismissible when weights exist; otherwise first visit re-offers.
         _uiState.update { it.copy(error = null) }
     }
 

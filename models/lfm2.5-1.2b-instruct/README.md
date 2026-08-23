@@ -8,6 +8,8 @@ GGUF once and stores it beside `model_metadata.json`.
 - Source: <https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF>
 - File: `LFM2.5-1.2B-Instruct-Q4_K_M.gguf`
 - Size: 730.9 MB (verified 2026-08-23 via HF API)
+- SHA256: `b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5`
+  (matches HF LFS OID; downloader #19 verifies against this before load)
 - License: LFM Open License v1.0 (weights only, via that repo)
 
 ## Why this one

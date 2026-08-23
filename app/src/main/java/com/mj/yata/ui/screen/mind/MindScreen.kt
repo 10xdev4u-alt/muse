@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -118,6 +119,12 @@ fun MindScreen(
                 }
             }
 
+            if (entries.isEmpty()) {
+                EmptySessionContent(
+                    onStarterSelected = viewModel::onInputChanged,
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -132,6 +139,7 @@ fun MindScreen(
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
+            }
             }
 
             Row(
@@ -169,6 +177,47 @@ fun MindScreen(
                 },
                 onDelete = viewModel::deleteSession,
                 onDismiss = { showHistory = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptySessionContent(
+    onStarterSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val starters = listOf(
+        "Today felt like…",
+        "I keep avoiding…",
+        "What I actually want is…"
+    )
+    Column(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 24.dp),
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.Psychology,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        Text(
+            "What's on your mind?",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Text(
+            "Write it raw. Muse reflects — it doesn't advise.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+        )
+        starters.forEach { starter ->
+            androidx.compose.material3.SuggestionChip(
+                onClick = { onStarterSelected(starter) },
+                label = { Text(starter) },
+                modifier = Modifier.padding(vertical = 4.dp)
             )
         }
     }

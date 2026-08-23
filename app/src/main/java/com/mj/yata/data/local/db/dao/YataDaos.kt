@@ -369,3 +369,30 @@ interface TaskCommentDao {
     @Delete
     suspend fun delete(comment: TaskCommentEntity)
 }
+
+@Dao
+interface JournalDao {
+    @Query("SELECT * FROM journal_entries WHERE sessionId = :sessionId ORDER BY createdAt ASC, id ASC")
+    fun observeSession(sessionId: String): Flow<List<JournalEntryEntity>>
+
+    @Query(
+        "SELECT sessionId FROM journal_entries " +
+            "GROUP BY sessionId ORDER BY MAX(createdAt) DESC"
+    )
+    fun observeRecentSessions(): Flow<List<String>>
+
+    @Query("SELECT COUNT(*) FROM journal_entries")
+    suspend fun count(): Int
+
+    @Upsert
+    suspend fun insert(entry: JournalEntryEntity)
+
+    @Query("UPDATE journal_entries SET body = :body, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateBody(id: String, body: String, updatedAt: Long)
+
+    @Delete
+    suspend fun delete(entry: JournalEntryEntity)
+
+    @Query("DELETE FROM journal_entries WHERE sessionId = :sessionId")
+    suspend fun deleteSession(sessionId: String)
+}

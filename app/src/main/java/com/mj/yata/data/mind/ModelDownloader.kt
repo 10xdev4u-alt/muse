@@ -42,6 +42,7 @@ sealed class DownloadState {
 /** What the MindViewModel may know about model acquisition — nothing about HTTP. */
 interface ModelAcquisition {
     val state: StateFlow<DownloadState>
+    val modelDir: File
     fun isModelPresent(): Boolean
     suspend fun download()
 }
@@ -62,7 +63,7 @@ class ModelDownloader @Inject constructor(
     private val _state = MutableStateFlow<DownloadState>(DownloadState.Idle)
     override val state: StateFlow<DownloadState> = _state.asStateFlow()
 
-    val modelDir: File
+    override val modelDir: File
         get() = File(context.filesDir, "xybrid/${XybridRuntime.MODEL_ID}").apply { mkdirs() }
 
     override fun isModelPresent(): Boolean =

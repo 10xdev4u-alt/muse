@@ -114,6 +114,8 @@ class MindViewModelTest {
             kotlinx.coroutines.flow.MutableStateFlow<com.mj.yata.data.mind.DownloadState>(
                 com.mj.yata.data.mind.DownloadState.Idle
             )
+        override val modelDir: java.io.File =
+            java.io.File(System.getProperty("java.io.tmpdir"), "fake-model-dir")
         override fun isModelPresent(): Boolean = true
         override suspend fun download() = Unit
     }

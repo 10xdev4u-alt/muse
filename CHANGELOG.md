@@ -15,6 +15,32 @@ test-only changes belong in the commit message, not here, unless they change beh
 
 ## [Unreleased]
 
+## [0.1.0-mind.1] - 2026-08-23
+
+`versionCode 100`. First Muse release — the Mind feature rides behind a flag until the
+on-device model pipeline completes its first emulator validation.
+
+### Added
+- **Mind tab** (feature-flagged): journaling sessions where an on-device LLM reflects on
+  your writing — mirrors your words, asks one open question, never advises.
+- **Daily review**: once per day, three reflection prompts grounded in your real task data
+  (completed / pending / overdue), saved into journal history.
+- **Session history**: past sessions grouped by day, reopen and delete-with-undo.
+- **On-device model pipeline**: one-time 731 MB download (Wi-Fi default, resumable,
+  SHA256-verified against a pinned hash), streaming inference via llama.cpp, automatic
+  unload after 60 s in background, storage guard before download.
+- **Model management** in Settings: usage shown, delete with confirm.
+- Biometric/PIN lock now also guards AI features; journals included in existing backups/exports.
+
+### Changed
+- App renamed conceptually to Muse; package rename lands next release (issue #30).
+- CI: PR checks, stale-branch janitor, tagged APK releases, GitHub Pages landing deploy.
+
+### Credits
+- Task-manager foundation: [YATA](https://github.com/rjwarrier/yata) by rjwarrier.
+- On-device inference: [Xybrid](https://github.com/xybrid-ai/xybrid) Kotlin SDK; model
+  LFM2.5-1.2B-Instruct by Liquid AI.
+
 ## [0.90.1 beta] - 2026-08-03
 
 `versionCode 13`. Upgrades in place over 0.90 beta.

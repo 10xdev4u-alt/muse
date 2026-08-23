@@ -47,6 +47,68 @@ class MindViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private class FakeReviewDayStore : com.mj.yata.domain.mind.ReviewDayStore {
+        var day: String? = null
+        override suspend fun lastReviewDay(): String? = day
+        override suspend fun setLastReviewDay(day: String) { this.day = day }
+    }
+
+    private fun installWithReview(
+        engine: ReflectionEngine,
+        tasks: List<com.mj.yata.domain.model.Task>,
+        store: FakeReviewDayStore = FakeReviewDayStore()
+    ): Pair<String, FakeReviewDayStore> {
+        repository = FakeJournalRepository()
+        viewModel = MindViewModel(repository, engine, FakeAcquisition(), com.mj.yata.domain.mind.TasksProvider { tasks }, store)
+        return viewModel.sessionId.value to store
+    }
+
+    @Test
+    fun dailyReview_runsOnce_persistsAsAssistantEntry() = kotlinx.coroutines.test.runTest(testDispatcher) {
+        val tasks = listOf(
+            task("Ship PR", "2026-08-23", done = true),
+            task("Write docs", "2026-08-23")
+        )
+        val (initialSid, store) = installWithReview(FakeEngine(tokens = listOf("1. ", "2. ", "3. ")), tasks)
+
+        viewModel.maybeRunDailyReview(java.time.LocalDate.parse("2026-08-23"))
+        advanceUntilIdle()
+
+        // Review landed in its own per-day session as an assistant entry.
+        val reviewSession = repository.store.value["daily-review-2026-08-23"].orEmpty()
+        assertEquals(1, reviewSession.size)
+        assertEquals("1. 2. 3. ", reviewSession.single().body)
+        assertEquals("2026-08-23", store.day)
+        assertTrue(initialSid.isNotEmpty())
+    }
+
+    @Test
+    fun dailyReview_skipsWhenAlreadyRunToday_orEmptyDay() = kotlinx.coroutines.test.runTest(testDispatcher) {
+        val (_, store) = installWithReview(FakeEngine(), emptyList())
+
+        viewModel.maybeRunDailyReview(java.time.LocalDate.parse("2026-08-23"))
+        advanceUntilIdle()
+        // Empty day: nothing persisted, flag not set (retry later today).
+        assertNull(store.day)
+        assertEquals(0, repository.store.value.size)
+
+        store.day = "2026-08-23"
+        val tasks = listOf(task("Only task", "2026-08-23"))
+        // Same store simulates an app restart on the same calendar day.
+        installWithReview(FakeEngine(tokens = listOf("x")), tasks, store)
+        viewModel.maybeRunDailyReview(java.time.LocalDate.parse("2026-08-23"))
+        advanceUntilIdle()
+        assertEquals(0, repository.store.value.size) // skipped entirely
+    }
+
+    private fun task(title: String, due: String?, done: Boolean = false) = com.mj.yata.domain.model.Task(
+        id = title, title = title, listId = null, projectId = null, section = "",
+        due = due, time = null, reminder = null, priority = "none", flag = false,
+        done = done, completedAt = if (done) 1L else null, createdAt = 0L, deletedAt = null,
+        assigneeIds = emptyList(), tagIds = emptyList(), recurrence = null,
+        subtasks = emptyList(), notes = null
+    )
+
     private class FakeAcquisition : com.mj.yata.data.mind.ModelAcquisition {
         override val state =
             kotlinx.coroutines.flow.MutableStateFlow<com.mj.yata.data.mind.DownloadState>(
@@ -58,7 +120,11 @@ class MindViewModelTest {
 
     private fun install(engine: ReflectionEngine): String {
         repository = FakeJournalRepository()
-        viewModel = MindViewModel(repository, engine, FakeAcquisition())
+        viewModel = MindViewModel(
+            repository, engine, FakeAcquisition(),
+            com.mj.yata.domain.mind.TasksProvider { emptyList() },
+            FakeReviewDayStore()
+        )
         return viewModel.sessionId.value
     }
 

@@ -8,7 +8,7 @@
     android:targetCellHeight="4"
     android:updatePeriodMillis="1800000"
     android:resizeMode="horizontal|vertical"
-    android:configure="com.mj.yata.widget.WidgetCustomizerConfigActivity"
+    android:configure="dev.tenx.muse.widget.WidgetCustomizerConfigActivity"
     android:widgetFeatures="reconfigurable|configuration_optional"
     android:description="@string/widget_team_overdue_description"
     android:widgetCategory="home_screen" />

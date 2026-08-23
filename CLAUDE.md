@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-YATA ("Yet Another Task App") — a Material 3 Expressive task manager for Android, built with Jetpack Compose, Room, and Hilt. Gradle root project name is `TodoExpressive` (legacy); package/app id is `com.mj.yata`. Two modules:
-- `:app` — the phone app (`com.mj.yata`, minSdk 26, compileSdk/targetSdk 35).
+YATA ("Yet Another Task App") — a Material 3 Expressive task manager for Android, built with Jetpack Compose, Room, and Hilt. Gradle root project name is `TodoExpressive` (legacy); package/app id is `dev.tenx.muse` (Muse — renamed from YATA at v0.1.0-mind.1). Two modules:
+- `:app` — the phone app (`dev.tenx.muse`, minSdk 26, compileSdk/targetSdk 35).
 - `:baselineprofile` — a `com.android.test` module that records the ART baseline profile packaged with the app.
 
 ## Commands
@@ -24,17 +24,17 @@ All commands run from the repo root using the Gradle wrapper (`./gradlew` on Bas
 
 # Unit tests (JVM, no device) — e.g. RecurrenceEvaluatorTest, NaturalLanguageParserTest
 ./gradlew :app:testDebugUnitTest
-./gradlew :app:testDebugUnitTest --tests "com.mj.yata.RecurrenceEvaluatorTest"
-./gradlew :app:testDebugUnitTest --tests "com.mj.yata.RecurrenceEvaluatorTest.testWeeklyRecurrence"
+./gradlew :app:testDebugUnitTest --tests "dev.tenx.muse.RecurrenceEvaluatorTest"
+./gradlew :app:testDebugUnitTest --tests "dev.tenx.muse.RecurrenceEvaluatorTest.testWeeklyRecurrence"
 
 # Instrumented tests. DESTRUCTIVE — see the warning below; -PdisposableDevice is required, and the
 # build refuses to run without it. Note `--tests` does NOT work here; that is Gradle's unit-test
 # filter, and connectedAndroidTest takes a runner argument instead.
 ./gradlew :app:connectedDebugAndroidTest -PdisposableDevice   # whole suite
-./gradlew :app:connectedDebugAndroidTest -PdisposableDevice -Pandroid.testInstrumentationRunnerArguments.class=com.mj.yata.data.local.db.AppDatabaseMigrationTest
+./gradlew :app:connectedDebugAndroidTest -PdisposableDevice -Pandroid.testInstrumentationRunnerArguments.class=dev.tenx.muse.data.local.db.AppDatabaseMigrationTest
 
 # Compose UI smoke suite (launch, add, complete, tab switch, delete-undo)
-./gradlew :app:connectedDebugAndroidTest -PdisposableDevice -Pandroid.testInstrumentationRunnerArguments.class=com.mj.yata.MainScreenSmokeTest
+./gradlew :app:connectedDebugAndroidTest -PdisposableDevice -Pandroid.testInstrumentationRunnerArguments.class=dev.tenx.muse.MainScreenSmokeTest
 
 # Regenerate the baseline profile (needs a rooted/userdebug device or emulator, API 28+)
 ./gradlew :baselineprofile:generateBaselineProfile

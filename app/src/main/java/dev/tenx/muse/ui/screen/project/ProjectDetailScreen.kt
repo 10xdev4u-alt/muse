@@ -1,0 +1,1067 @@
+package dev.tenx.muse.ui.screen.project
+
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import dev.tenx.muse.R
+import dev.tenx.muse.ui.widgets.showSuccess
+import dev.tenx.muse.ui.widgets.showError
+import dev.tenx.muse.util.taskMatchesQuery
+import dev.tenx.muse.util.sortedByMode
+import dev.tenx.muse.util.export.toExportRow
+import dev.tenx.muse.domain.model.*
+import dev.tenx.muse.ui.screen.main.MainViewModel
+import dev.tenx.muse.ui.theme.LocalYataAccents
+import dev.tenx.muse.ui.widgets.AssigneeStack
+import dev.tenx.muse.ui.widgets.DragDropReorderableColumn
+import dev.tenx.muse.ui.widgets.TaskRow
+import dev.tenx.muse.ui.widgets.TaskSectionHeader
+import dev.tenx.muse.ui.sheets.*
+import androidx.compose.animation.core.tween
+import dev.tenx.muse.ui.theme.YataDur
+import dev.tenx.muse.ui.theme.yataItemFade
+import dev.tenx.muse.ui.theme.yataItemPlacement
+import dev.tenx.muse.ui.theme.YataEase
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun ProjectDetailScreen(
+    viewModel: MainViewModel,
+    projectId: String,
+    onNavigateBack: () -> Unit,
+    onNavigateToTaskDetail: (String) -> Unit,
+    onNavigateToTab: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val autoAssignToMe by viewModel.autoAssignToMe.collectAsStateWithLifecycle()
+    val lists by viewModel.lists.collectAsStateWithLifecycle()
+    val projectTasks by remember(projectId) { viewModel.getTasksForProject(projectId) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val allTasks by viewModel.tasks.collectAsStateWithLifecycle()
+    val people by viewModel.people.collectAsStateWithLifecycle()
+    val tags by viewModel.tags.collectAsStateWithLifecycle()
+    val taskRowDensity by viewModel.taskRowDensity.collectAsStateWithLifecycle()
+
+    val project = remember(projects, projectId) { projects.find { it.id == projectId } }
+    val accents = LocalYataAccents.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val defaultDueDate by viewModel.defaultDueDate.collectAsStateWithLifecycle()
+    val defaultPriority by viewModel.defaultPriority.collectAsStateWithLifecycle()
+    var exportFormatPending by remember { mutableStateOf<dev.tenx.muse.util.export.ExportFormat?>(null) }
+    var exportInProgress by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // A project's tasks are already scoped to this one project, so the export's subheading
+    // groups by list instead (a project name heading would be redundant on every group here).
+    val listsById = remember(lists) { lists.associateBy { it.id } }
+    val projectsById = remember(projects) { projects.associateBy { it.id } }
+    val tagsById = remember(tags) { tags.associateBy { it.id } }
+    val peopleById = remember(people) { people.associateBy { it.id } }
+    fun exportGroupLabel(task: Task): String =
+        listsById[task.listId]?.name?.let { "List - $it" } ?: ""
+
+    val tagErrorColor = MaterialTheme.colorScheme.error
+    fun exportTagChips(task: Task): List<dev.tenx.muse.util.export.ExportTagChip> =
+        task.effectiveTagIds(projectsById).mapNotNull { tagId ->
+            tagsById[tagId]?.let { tag ->
+                val color = if (tag.color == "error") tagErrorColor else accents.getAccent(tag.color)
+                dev.tenx.muse.util.export.ExportTagChip(tag.name, color)
+            }
+        }
+
+    fun exportAssigneeNames(task: Task): List<String> =
+        task.assigneeIds.mapNotNull { id -> peopleById[id]?.name }
+
+    var isNewTaskSheetOpen by remember { mutableStateOf(false) }
+    var isEditSheetOpen by remember { mutableStateOf(false) }
+    var isManageSectionsSheetOpen by remember { mutableStateOf(false) }
+    var showArchiveDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showRolloverDialog by remember { mutableStateOf(false) }
+    var showOverdueRolloverDialog by remember { mutableStateOf(false) }
+    val hideCompleted by viewModel.hideCompletedProject.collectAsStateWithLifecycle()
+    var searchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val showMissingProject = dev.tenx.muse.ui.widgets.rememberMissingContentVisible(projectId, project == null)
+    if (project == null) {
+        if (showMissingProject) {
+            dev.tenx.muse.ui.widgets.MissingContentState(
+                itemName = stringResource(R.string.entity_project),
+                onNavigateBack = onNavigateBack
+            )
+        } else {
+            dev.tenx.muse.ui.widgets.ListDetailShimmer()
+        }
+        return
+    }
+
+    val projectColor = accents.getAccent(project.color)
+    dev.tenx.muse.ui.theme.StatusBarColor(
+        projectColor.copy(alpha = 0.16f).compositeOver(MaterialTheme.colorScheme.background)
+    )
+    // Split into Pending (draggable) / Completed (static) instead of one combined, interleaved
+    // list — only Pending supports drag-reorder, Completed just renders below it with its own
+    // header. Hiding completed drops both the tasks and the section headers entirely.
+    val sortMode by viewModel.sortModeProject.collectAsStateWithLifecycle()
+    val pendingProjectTasks = remember(projectTasks, sortMode) {
+        projectTasks.filter { !it.done }.sortedByMode(sortMode)
+    }
+    val completedProjectTasks = remember(projectTasks, hideCompleted) {
+        if (hideCompleted) emptyList() else projectTasks.filter { it.done }
+    }
+    val searchFilteredTasks = remember(projectTasks, searchQuery) {
+        if (searchQuery.isBlank()) emptyList() else projectTasks.filter { taskMatchesQuery(it, searchQuery) }
+    }
+    var activeStatFilter by remember { mutableStateOf<dev.tenx.muse.ui.widgets.HeroStatKind?>(null) }
+    val today = dev.tenx.muse.util.AppClock.today
+    // Tapping a hero stat behaves like search — a flat, non-draggable filtered list — since
+    // committing a drag-reorder over a filtered subset would corrupt sortOrder for the tasks
+    // the filter is hiding (same reasoning as searchFilteredTasks above).
+    val statFilteredTasks = remember(projectTasks, activeStatFilter, today) {
+        val filter = activeStatFilter ?: return@remember emptyList()
+        projectTasks.filter { filter.matches(it, today) }
+    }
+
+    // Not keyed on pendingProjectTasks — any task write anywhere in the app (a reminder firing,
+    // a recurring task rolling over) produces a new `tasks` list instance, which used to reset
+    // this mid-drag and silently discard/corrupt the in-progress reorder. A LaunchedEffect
+    // re-syncs from the source of truth on real changes, but skips doing so while dragging.
+    var localOrder by remember { mutableStateOf(pendingProjectTasks) }
+    var isDraggingTasks by remember { mutableStateOf(false) }
+    LaunchedEffect(pendingProjectTasks) {
+        if (!isDraggingTasks) localOrder = pendingProjectTasks
+    }
+    var pendingMoveTask by remember { mutableStateOf<Task?>(null) }
+    var pendingCommentTask by remember { mutableStateOf<Task?>(null) }
+
+    val selectedIds = remember { mutableStateListOf<String>() }
+    val selectionMode = selectedIds.isNotEmpty()
+    var showBulkTagSheet by remember { mutableStateOf(false) }
+    var showBulkMoveSheet by remember { mutableStateOf(false) }
+    var showBulkAssignSheet by remember { mutableStateOf(false) }
+    var showBulkRescheduleSheet by remember { mutableStateOf(false) }
+    var showBulkDeleteDialog by remember { mutableStateOf(false) }
+
+    val totalTasks = projectTasks.size
+    val doneTasks = projectTasks.count { it.done }
+    val progress = if (totalTasks > 0) doneTasks.toFloat() / totalTasks else 0f
+    val overdueCount = remember(projectTasks) { dev.tenx.muse.util.AnalyticsUtils.overdueCount(projectTasks) }
+    val highPriorityCount = remember(projectTasks) { projectTasks.count { !it.done && it.priority == "high" } }
+    val todayStr = dev.tenx.muse.util.AppClock.todayString
+    val dueTodayCount = remember(projectTasks, todayStr) { projectTasks.count { !it.done && it.due == todayStr } }
+
+    val projectPeople = remember(projectTasks, people) {
+        val pids = projectTasks.flatMap { it.assigneeIds }.toSet()
+        people.filter { pids.contains(it.id) }
+    }
+
+    val todayBadgeCount by viewModel.todayRemainingCount.collectAsStateWithLifecycle()
+    val peopleFeatureEnabled by viewModel.peopleFeatureEnabled.collectAsStateWithLifecycle()
+    val tagsFeatureEnabled by viewModel.tagsFeatureEnabled.collectAsStateWithLifecycle()
+    val projectsFeatureEnabled by viewModel.projectsFeatureEnabled.collectAsStateWithLifecycle()
+    val todayTabEnabled by viewModel.todayTabEnabled.collectAsStateWithLifecycle()
+    val upcomingTabEnabled by viewModel.upcomingTabEnabled.collectAsStateWithLifecycle()
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) { data -> dev.tenx.muse.ui.widgets.YataSnackbar(data) } },
+        bottomBar = {
+            dev.tenx.muse.ui.screen.main.CustomBottomNav(
+                selectedTab = 1,
+                todayBadgeCount = todayBadgeCount,
+                peopleEnabled = peopleFeatureEnabled,
+                tagsEnabled = tagsFeatureEnabled,
+                projectsEnabled = projectsFeatureEnabled,
+                todayEnabled = todayTabEnabled,
+                upcomingEnabled = upcomingTabEnabled,
+                onTabSelected = onNavigateToTab
+            )
+        },
+        topBar = {
+            if (selectionMode) {
+                TaskSelectionTopBar(
+                    selectedCount = selectedIds.size,
+                    onCancel = { selectedIds.clear() },
+                    onComplete = { viewModel.bulkCompleteTasks(selectedIds.toList()); selectedIds.clear() },
+                    onAddTag = { showBulkTagSheet = true },
+                    onMove = { showBulkMoveSheet = true },
+                    onReschedule = { showBulkRescheduleSheet = true },
+                    onDuplicate = { viewModel.bulkDuplicateTasks(selectedIds.toList()); selectedIds.clear() },
+                    onDelete = { showBulkDeleteDialog = true },
+                    onAssign = { showBulkAssignSheet = true },
+                    tagsEnabled = tagsFeatureEnabled,
+                    peopleEnabled = peopleFeatureEnabled,
+                    modifier = Modifier.statusBarsPadding()
+                )
+            } else {
+            TopAppBar(
+                title = {
+                    if (searchActive) {
+                        val focusRequester = remember { FocusRequester() }
+                        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                            singleLine = true,
+                            placeholder = { Text(stringResource(R.string.search_in_project, project.name)) },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            )
+                        )
+                    } else {
+                        Text(
+                            project.name,
+                            style = androidx.compose.ui.text.TextStyle(
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSynthesis = androidx.compose.ui.text.font.FontSynthesis.All
+                            )
+                        )
+                    }
+                },
+                navigationIcon = {
+                    dev.tenx.muse.ui.widgets.YataTopBarIconButton(onClick = {
+                        if (searchActive) {
+                            searchActive = false
+                            searchQuery = ""
+                        } else {
+                            onNavigateBack()
+                        }
+                    }) {
+                        Icon(Icons.AutoMirrored.Default.ArrowBack, contentDescription = if (searchActive) "Close search" else "Back")
+                    }
+                },
+                actions = {
+                    // Wrapped so the circular containers get the same 8dp gap they have on the
+                    // main tabs — the actions slot packs its children flush, which reads as one
+                    // long pill once the buttons are filled rather than plain.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                    if (searchActive) {
+                        if (searchQuery.isNotEmpty()) {
+                            dev.tenx.muse.ui.widgets.YataTopBarIconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_clear_search))
+                            }
+                        }
+                    } else {
+                        dev.tenx.muse.ui.widgets.YataTopBarIconButton(onClick = { searchActive = true }) {
+                            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.project_detail_search_in_project))
+                        }
+                        dev.tenx.muse.ui.widgets.TaskSortMenuButton(
+                            current = sortMode,
+                            onSelect = { viewModel.setSortModeProject(it) },
+                            filledContainer = true
+                        )
+                        dev.tenx.muse.ui.widgets.YataTopBarIconToggleButton(
+                            checked = hideCompleted,
+                            onCheckedChange = { viewModel.setHideCompletedProject(it) }
+                        ) {
+                            Icon(
+                                imageVector = if (hideCompleted) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (hideCompleted) "Show completed tasks" else "Hide completed tasks"
+                            )
+                        }
+                        var showMenu by remember { mutableStateOf(false) }
+                        Box {
+                        dev.tenx.muse.ui.widgets.YataTopBarIconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.cd_more_options))
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.project_detail_edit_project)) },
+                                onClick = {
+                                    showMenu = false
+                                    isEditSheetOpen = true
+                                },
+                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.project_manage_sections)) },
+                                onClick = {
+                                    showMenu = false
+                                    isManageSectionsSheetOpen = true
+                                },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ViewList, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_export_as_markdown)) },
+                                onClick = {
+                                    showMenu = false
+                                    dev.tenx.muse.util.shareTasksAsMarkdown(context, project.name, projectTasks)
+                                },
+                                leadingIcon = { Icon(Icons.Default.IosShare, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_export_as_image)) },
+                                onClick = {
+                                    showMenu = false
+                                    exportFormatPending = dev.tenx.muse.util.export.ExportFormat.IMAGE
+                                },
+                                leadingIcon = { Icon(Icons.Default.Image, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_export_as_pdf)) },
+                                onClick = {
+                                    showMenu = false
+                                    exportFormatPending = dev.tenx.muse.util.export.ExportFormat.PDF
+                                },
+                                leadingIcon = { Icon(Icons.Default.PictureAsPdf, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.project_detail_roll_over_open_tasks)) },
+                                onClick = {
+                                    showMenu = false
+                                    showRolloverDialog = true
+                                },
+                                leadingIcon = { Icon(Icons.Default.SkipNext, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.project_detail_roll_overdue_forward)) },
+                                onClick = {
+                                    showMenu = false
+                                    showOverdueRolloverDialog = true
+                                },
+                                leadingIcon = { Icon(Icons.Default.SkipNext, contentDescription = null) }
+                            )
+                            if (project.archived) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.project_detail_restore_project)) },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.setProjectArchived(project, false)
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Visibility, contentDescription = null) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.project_detail_delete_project)) },
+                                    onClick = {
+                                        showMenu = false
+                                        showDeleteDialog = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.project_detail_archive_project)) },
+                                    onClick = {
+                                        showMenu = false
+                                        showArchiveDialog = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                                )
+                            }
+                        }
+                        }
+                    }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = projectColor.copy(alpha = 0.16f)
+                )
+            )
+            }
+        },
+        floatingActionButton = {
+            if (!project.archived) {
+                dev.tenx.muse.ui.widgets.PressableScaleBox(
+                    onClick = { isNewTaskSheetOpen = true }
+                ) {
+                    Surface(
+                        color = projectColor,
+                        contentColor = accents.onAccentFor(projectColor),
+                        shape = RoundedCornerShape(16.dp),
+                        tonalElevation = 6.dp,
+                        shadowElevation = 6.dp
+                    ) {
+                        Box(
+                            modifier = Modifier.size(56.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add_task))
+                        }
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+        val listsById = remember(lists) { lists.associateBy { it.id } }
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
+        ) {
+            // 1. Hero section — icon tile + stats + assignees, with overdue/high-priority/
+            // due-today alongside the completed count. All derived from projectTasks (not
+            // search-filtered) so they always reflect the real workload.
+            dev.tenx.muse.ui.widgets.EntityHeroSection(
+                accentColor = projectColor,
+                progress = progress,
+                primaryText = "$doneTasks / $totalTasks completed",
+                overdueCount = overdueCount,
+                highPriorityCount = highPriorityCount,
+                dueTodayCount = dueTodayCount,
+                leadingContent = {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(projectColor.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = dev.tenx.muse.ui.widgets.iconVectorFor(project.icon),
+                            contentDescription = null,
+                            tint = projectColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                },
+                secondaryContent = {
+                    if (!project.description.isNullOrBlank()) {
+                        Text(
+                            text = project.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                    if (project.due != null) {
+                        Text(
+                            text = "Due " + dev.tenx.muse.util.TaskScheduleUtils.formatDueDate(project.due),
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                trailingExtra = if (projectPeople.isNotEmpty()) {
+                    { AssigneeStack(people = projectPeople, avatarSize = 24.dp) }
+                } else null,
+                activeFilter = activeStatFilter,
+                onStatClick = { activeStatFilter = if (activeStatFilter == it) null else it }
+            )
+
+            // 2. Task list — Pending (drag-to-reorder, or drag to the top/bottom edge to move to
+            // another list/project) above a static Completed section. While searching, drag
+            // reorder is disabled (committing a filtered subset's order would corrupt sortOrder
+            // for the tasks hidden by the search), so it falls back to a flat matched list.
+            @Composable
+            fun taskRowFor(task: Task, modifier: Modifier = Modifier) {
+                val taskList = remember(task.listId, listsById) { listsById[task.listId] }
+                val taskAssignees = remember(task.assigneeIds, peopleById, peopleFeatureEnabled) {
+                    if (peopleFeatureEnabled) task.assigneeIds.mapNotNull { pid -> peopleById[pid] } else emptyList()
+                }
+                val taskTags = remember(task, projectsById, tagsById, tagsFeatureEnabled) {
+                    if (tagsFeatureEnabled) task.effectiveTags(projectsById, tagsById) else emptyList()
+                }
+
+                TaskRow(
+                    task = task,
+                    list = taskList,
+                    assignees = taskAssignees,
+                    tags = taskTags,
+                    onToggleDone = { viewModel.toggleTaskDone(task.id) {} },
+                    onTaskClick = {
+                        if (selectionMode) {
+                            if (selectedIds.contains(task.id)) selectedIds.remove(task.id) else selectedIds.add(task.id)
+                        } else {
+                            onNavigateToTaskDetail(task.id)
+                        }
+                    },
+                    selectionMode = selectionMode,
+                    selected = selectedIds.contains(task.id),
+                    onLongClick = { if (!selectedIds.contains(task.id)) selectedIds.add(task.id) },
+                    modifier = modifier,
+                    onCommentClick = { pendingCommentTask = task },
+                    onQuickSnooze = { viewModel.quickSnoozeTask(task.id, it) },
+                    onRenameTask = { viewModel.renameTask(task.id, it) },
+                    density = taskRowDensity,
+                    showDueDate = true
+                )
+            }
+
+            if (activeStatFilter != null) {
+                dev.tenx.muse.ui.widgets.ActiveFilterBanner(
+                    kind = activeStatFilter!!,
+                    onClear = { activeStatFilter = null }
+                )
+            }
+
+            if (selectionMode) {
+                // Selection mode falls back to a flat, non-draggable list — long-press drag
+                // reorder and long-press-to-select both claim the initial press, so they can't
+                // coexist; this mirrors the search/stat-filter fallback below for the same reason.
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp)
+                ) {
+                    if (!hideCompleted && pendingProjectTasks.isNotEmpty()) {
+                        item(key = "sel_pending_header") { TaskSectionHeader("PENDING", pendingProjectTasks.size) }
+                    }
+                    items(pendingProjectTasks, key = { "sel_pending_" + it.id }) { task -> taskRowFor(task) }
+                    if (!hideCompleted && completedProjectTasks.isNotEmpty()) {
+                        item(key = "sel_completed_header") { TaskSectionHeader("COMPLETED", completedProjectTasks.size) }
+                        items(completedProjectTasks, key = { "sel_completed_" + it.id }) { task -> taskRowFor(task) }
+                    }
+                }
+            } else if (searchActive) {
+                if (searchQuery.isBlank()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Type to search tasks in this project.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                } else if (searchFilteredTasks.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No matching tasks.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(bottom = 88.dp)
+                    ) {
+                        items(searchFilteredTasks, key = { it.id }) { task -> taskRowFor(task) }
+                    }
+                }
+            } else if (activeStatFilter != null) {
+                if (statFilteredTasks.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.task_filter_no_matches),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(bottom = 88.dp)
+                    ) {
+                        items(statFilteredTasks, key = { it.id }) { task -> taskRowFor(task) }
+                    }
+                }
+            } else if (pendingProjectTasks.isEmpty() && completedProjectTasks.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (projectTasks.isEmpty()) "No tasks in this project yet." else "All tasks completed.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+            } else if (project.sectionNames.isNotEmpty()) {
+                // Grouped-by-section view — falls back to a flat, non-draggable list per the
+                // same reasoning as the search/stat-filter/selection branches above: reordering
+                // across a header boundary isn't something DragDropReorderableColumn's single
+                // contiguous-region drag math supports, so cross-section moves go through the
+                // "Section" picker on the task itself (TaskDetailScreen) instead of a drag.
+                val sectioned = pendingProjectTasks.groupBy { it.section.takeIf { s -> s in project.sectionNames } ?: "" }
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp)
+                ) {
+                    val unsectioned = sectioned[""].orEmpty()
+                    if (unsectioned.isNotEmpty()) {
+                        item(key = "section_none_header") {
+                            TaskSectionHeader(stringResource(R.string.section_header_no_section), unsectioned.size)
+                        }
+                        items(unsectioned, key = { "sec_none_" + it.id }) { task -> taskRowFor(task) }
+                    }
+                    project.sectionNames.forEach { sectionName ->
+                        val tasksInSection = sectioned[sectionName].orEmpty()
+                        if (tasksInSection.isNotEmpty()) {
+                            item(key = "section_${sectionName}_header") { TaskSectionHeader(sectionName.uppercase(), tasksInSection.size) }
+                            items(tasksInSection, key = { "sec_${sectionName}_" + it.id }) { task -> taskRowFor(task) }
+                        }
+                    }
+                    if (!hideCompleted && completedProjectTasks.isNotEmpty()) {
+                        item(key = "completed_header") { TaskSectionHeader("COMPLETED", completedProjectTasks.size) }
+                        items(completedProjectTasks, key = { "completed_" + it.id }) { task -> taskRowFor(task) }
+                    }
+                }
+            } else {
+                val showPendingHeader = !hideCompleted && pendingProjectTasks.isNotEmpty()
+                DragDropReorderableColumn(
+                    items = localOrder,
+                    key = { it.id },
+                    onMove = { from, to -> localOrder = localOrder.toMutableList().apply { add(to, removeAt(from)) } },
+                    onDragEnd = { viewModel.commitTaskOrder(localOrder) },
+                    onDragToTopEdge = { task -> pendingMoveTask = task },
+                    onDragToBottomEdge = { task -> pendingMoveTask = task },
+                    onDragStateChanged = { isDraggingTasks = it },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                    headerItemCount = if (showPendingHeader) 1 else 0,
+                    header = {
+                        if (showPendingHeader) {
+                            item(key = "pending_header") { TaskSectionHeader("PENDING", pendingProjectTasks.size) }
+                        }
+                    },
+                    footer = {
+                        if (!hideCompleted && completedProjectTasks.isNotEmpty()) {
+                            item(key = "completed_header") { TaskSectionHeader("COMPLETED", completedProjectTasks.size) }
+                            items(completedProjectTasks, key = { "completed_" + it.id }) { task ->
+                                taskRowFor(
+                                    task = task,
+                                    modifier = Modifier.animateItem(fadeInSpec = yataItemFade, placementSpec = yataItemPlacement, fadeOutSpec = yataItemFade
+                                    )
+                                )
+                            }
+                        }
+                    }
+                ) { task -> taskRowFor(task) }
+            }
+        }
+    }
+
+    pendingMoveTask?.let { task ->
+        ModalBottomSheet(
+            onDismissRequest = { pendingMoveTask = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskMoveToPickerSheet(
+                lists = lists,
+                projects = projects.activeProjects().filter { it.id != project.id },
+                onSelectList = { targetListId ->
+                    viewModel.moveTaskToList(task.id, targetListId, null)
+                    pendingMoveTask = null
+                },
+                onSelectProject = { targetProjectId ->
+                    viewModel.moveTaskToList(task.id, null, targetProjectId)
+                    pendingMoveTask = null
+                }
+            )
+        }
+    }
+
+    pendingCommentTask?.let { task ->
+        dev.tenx.muse.ui.widgets.QuickCommentDialog(
+            taskTitle = task.title,
+            onSubmit = { body ->
+                viewModel.addComment(task.id, body)
+                pendingCommentTask = null
+            },
+            onDismiss = { pendingCommentTask = null }
+        )
+    }
+
+    if (showBulkTagSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulkTagSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskBulkTagPickerSheet(
+                tags = tags,
+                onSelectTag = { tagId ->
+                    viewModel.bulkAddTag(selectedIds.toList(), tagId)
+                    selectedIds.clear()
+                    showBulkTagSheet = false
+                },
+                onDismiss = { showBulkTagSheet = false }
+            )
+        }
+    }
+
+    if (showBulkAssignSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulkAssignSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskBulkAssignPersonSheet(
+                people = people,
+                tasks = allTasks,
+                todayStr = dev.tenx.muse.util.AppClock.todayString,
+                onSelectPerson = { personId ->
+                    viewModel.bulkAssignPerson(selectedIds.toList(), personId)
+                    selectedIds.clear()
+                    showBulkAssignSheet = false
+                },
+                onDismiss = { showBulkAssignSheet = false }
+            )
+        }
+    }
+
+    if (showBulkMoveSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulkMoveSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskBulkMoveSheet(
+                projects = projects,
+                lists = lists,
+                onSelectProject = { targetProjectId ->
+                    viewModel.bulkSetProject(selectedIds.toList(), targetProjectId)
+                    selectedIds.clear()
+                    showBulkMoveSheet = false
+                },
+                onSelectList = { targetListId ->
+                    viewModel.bulkSetList(selectedIds.toList(), targetListId)
+                    selectedIds.clear()
+                    showBulkMoveSheet = false
+                },
+                onDismiss = { showBulkMoveSheet = false },
+                projectsEnabled = projectsFeatureEnabled
+            )
+        }
+    }
+
+    if (showBulkRescheduleSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulkRescheduleSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            TaskBulkRescheduleSheet(
+                onSelectPreset = { preset ->
+                    viewModel.bulkRescheduleTasks(selectedIds.toList(), preset)
+                    selectedIds.clear()
+                    showBulkRescheduleSheet = false
+                },
+                onDismiss = { showBulkRescheduleSheet = false }
+            )
+        }
+    }
+
+    if (showBulkDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showBulkDeleteDialog = false },
+            title = { Text(pluralStringResource(R.plurals.confirm_delete_tasks_title, selectedIds.size, selectedIds.size)) },
+            text = { Text(stringResource(R.string.action_this_can_t_be_undone)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.bulkDeleteTasks(selectedIds.toList())
+                    selectedIds.clear()
+                    showBulkDeleteDialog = false
+                }) {
+                    Text(stringResource(R.string.cd_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkDeleteDialog = false }) { Text(stringResource(R.string.action_cancel)) }
+            }
+        )
+    }
+
+    exportFormatPending?.let { format ->
+        dev.tenx.muse.util.export.ExportOptionsDialog(
+            entityName = project.name,
+            format = format,
+            itemPreviews = projectTasks.map { dev.tenx.muse.util.export.ExportItemPreview(it.done, it.completedAt) },
+            onDismiss = { exportFormatPending = null },
+            onConfirm = { options ->
+                exportFormatPending = null
+                val cutoffMillis = options.excludeCompletedOlderThanDays?.takeIf { it > 0 }?.let {
+                    System.currentTimeMillis() - it.toLong() * 24 * 60 * 60 * 1000
+                }
+                val exportTasks = projectTasks.filter { task ->
+                    if (!task.done) return@filter true
+                    if (!options.includeCompleted) return@filter false
+                    cutoffMillis == null || (task.completedAt != null && task.completedAt >= cutoffMillis)
+                }
+                scope.launch {
+                    exportInProgress = true
+                    val exportResult = runCatching {
+                        dev.tenx.muse.util.export.exportEntityReport(
+                            context = context,
+                            format = format,
+                            entityKind = "Project",
+                            entityName = project.name,
+                            accentColor = projectColor,
+                            doneCount = exportTasks.count { it.done },
+                            totalCount = exportTasks.size,
+                            overdueCount = dev.tenx.muse.util.AnalyticsUtils.overdueCount(exportTasks),
+                            tasks = exportTasks.map { task ->
+                                task.toExportRow(
+                                    exportGroupLabel(task),
+                                    if (options.showTags) exportTagChips(task) else emptyList(),
+                                    if (options.showAssignees) exportAssigneeNames(task) else emptyList()
+                                )
+                            },
+                            layoutDensity = options.density,
+                            strikeThroughCompleted = options.strikeThroughCompleted,
+                            showTags = options.showTags,
+                            showAssignees = options.showAssignees,
+                            showMadeWithFooter = options.showMadeWithFooter,
+                            destination = options.destination,
+                            fileNameBase = options.fileNameBase,
+                            pdfPageSize = options.pdfPageSize,
+                            imageScale = options.imageScale
+                        )
+                    }
+                    exportInProgress = false
+                    exportResult.onSuccess { outcome ->
+                        snackbarHostState.showSuccess(outcome.userMessage())
+                    }.onFailure { error ->
+                        snackbarHostState.showError(error.message ?: context.getString(R.string.export_failed))
+                    }
+                }
+            }
+        )
+    }
+    if (exportInProgress) {
+        dev.tenx.muse.util.export.ExportProgressDialog()
+    }
+
+    if (isNewTaskSheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { isNewTaskSheetOpen = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            NewTaskSheet(
+                lists = lists,
+                projects = projects.activeProjects(includeId = project.id),
+                people = people.activePeople(),
+                tags = tags,
+                tasks = allTasks,
+                initialProjectId = project.id,
+                onAddTask = { draft ->
+                    viewModel.addTask(draft)
+                    isNewTaskSheetOpen = false
+                },
+                onGoToExistingTask = { id ->
+                    isNewTaskSheetOpen = false
+                    onNavigateToTaskDetail(id)
+                },
+                autoAssignToMe = autoAssignToMe,
+                onCreateTag = { id, name, color ->
+                    viewModel.upsertTag(dev.tenx.muse.domain.model.Tag(id = id, name = name, color = color))
+                },
+                onCreatePerson = { id, name, color ->
+                    viewModel.upsertPerson(
+                        dev.tenx.muse.domain.model.Person(id = id, name = name, initials = dev.tenx.muse.ui.sheets.initialsFor(name), color = color, isMe = false)
+                    )
+                },
+                onDismiss = { isNewTaskSheetOpen = false },
+                projectsEnabled = projectsFeatureEnabled,
+                tagsEnabled = tagsFeatureEnabled,
+                peopleEnabled = peopleFeatureEnabled,
+                defaultDueDate = defaultDueDate,
+                defaultPriority = defaultPriority
+            )
+        }
+    }
+
+    if (isManageSectionsSheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { isManageSectionsSheetOpen = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            ManageSectionsSheet(
+                initialSections = project.sectionNames,
+                onSave = { updated ->
+                    viewModel.upsertProject(project.copy(sectionNames = updated))
+                    isManageSectionsSheetOpen = false
+                },
+                onDismiss = { isManageSectionsSheetOpen = false }
+            )
+        }
+    }
+
+    if (isEditSheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { isEditSheetOpen = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            ProjectEditorSheet(
+                initialName = project.name,
+                initialColor = project.color,
+                initialIcon = project.icon,
+                initialDueDate = project.due,
+                initialCommonTagIds = project.commonTagIds,
+                initialDefaultReminder = project.defaultReminder,
+                initialDescription = project.description,
+                initialExcludeFromToday = project.excludeFromToday,
+                tags = tags,
+                onSave = { newName, newColor, newIcon, newDue, newCommonTagIds, newDefaultReminder, newDescription, newExcludeFromToday ->
+                    viewModel.upsertProject(project.copy(name = newName, color = newColor, icon = newIcon, due = newDue, commonTagIds = newCommonTagIds, defaultReminder = newDefaultReminder, description = newDescription, excludeFromToday = newExcludeFromToday))
+                    isEditSheetOpen = false
+                },
+                onDismiss = { isEditSheetOpen = false }
+            )
+        }
+    }
+
+    if (showArchiveDialog) {
+        AlertDialog(
+            onDismissRequest = { showArchiveDialog = false },
+            title = { Text(stringResource(R.string.project_detail_archive_project_2)) },
+            text = { Text(stringResource(R.string.project_detail_tasks_inside_stay_linked_the_project_is_hi)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showArchiveDialog = false
+                        viewModel.setProjectArchived(project, true)
+                        onNavigateBack()
+                    }
+                ) {
+                    Text(stringResource(R.string.archive_title), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showArchiveDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.project_detail_delete_archived_project)) },
+            text = { Text(stringResource(R.string.project_detail_delete_only_the_project_to_keep_its_tasks)) },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            viewModel.deleteProjectOnly(project)
+                            onNavigateBack()
+                        }
+                    ) {
+                        Text(stringResource(R.string.project_detail_project_only))
+                    }
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            viewModel.deleteProject(project)
+                            onNavigateBack()
+                        }
+                    ) {
+                        Text(stringResource(R.string.project_detail_project_tasks), color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showRolloverDialog) {
+        val eligibleCount = remember(projectTasks) { projectTasks.count { !it.done && it.recurrence == null } }
+        AlertDialog(
+            onDismissRequest = { showRolloverDialog = false },
+            title = { Text(stringResource(R.string.project_detail_roll_over_open_tasks_2)) },
+            text = { Text(pluralStringResource(R.plurals.project_rollover_body, eligibleCount, eligibleCount)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRolloverDialog = false
+                    viewModel.rolloverProjectTasks(project.id)
+                }) {
+                    Text(stringResource(R.string.project_detail_roll_over))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRolloverDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showOverdueRolloverDialog) {
+        val today = dev.tenx.muse.util.AppClock.today
+        val eligibleCount = remember(projectTasks, today) {
+            projectTasks.count { task ->
+                !task.done &&
+                    task.recurrence == null &&
+                    task.due?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }?.isBefore(today) == true
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { showOverdueRolloverDialog = false },
+            title = { Text(stringResource(R.string.project_detail_roll_overdue_tasks_forward)) },
+            text = { Text(pluralStringResource(R.plurals.project_rollover_overdue_body, eligibleCount, eligibleCount)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showOverdueRolloverDialog = false
+                    viewModel.rolloverOverdueProjectTasks(project.id)
+                }) {
+                    Text(stringResource(R.string.project_detail_roll_forward))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOverdueRolloverDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+}

@@ -1,4 +1,4 @@
-package com.mj.yata.baselineprofile
+package dev.tenx.muse.baselineprofile
 
 import androidx.benchmark.macro.junit4.BaselineProfileRule
 import androidx.test.uiautomator.By
@@ -46,6 +46,6 @@ class BaselineProfileGenerator {
     }
 
     private companion object {
-        const val PACKAGE_NAME = "com.mj.yata"
+        const val PACKAGE_NAME = "dev.tenx.muse"
     }
 }

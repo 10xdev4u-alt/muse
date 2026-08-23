@@ -23,11 +23,11 @@ val keystoreProperties = Properties().apply {
 val debugKeystoreFile = rootProject.file("debug.keystore")
 
 android {
-    namespace = "com.mj.yata"
+    namespace = "dev.tenx.muse"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.mj.yata"
+        applicationId = "dev.tenx.muse"
         minSdk = 26
         targetSdk = 35
         versionCode = 100

@@ -1,0 +1,162 @@
+package dev.tenx.muse.ui.widgets
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import dev.tenx.muse.ui.theme.UiShape
+import dev.tenx.muse.ui.theme.YataDur
+import dev.tenx.muse.ui.theme.YataEase
+
+/**
+ * Tinted pill selector: accent@18% bg + accent text + check when selected.
+ * Mirrors handoff sheets.jsx / m3-widgets.jsx pill-chip language.
+ */
+@Composable
+fun YataSelectChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.primary,
+    dotColor: Color? = null,
+    leading: (@Composable () -> Unit)? = null,
+    showCheck: Boolean = true,
+    height: Dp = 34.dp
+) {
+    val bgAnimated by animateColorAsState(
+        targetValue = if (selected) tint.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+        animationSpec = tween(durationMillis = YataDur.micro, easing = YataEase.emphasized),
+        label = "selectChipBg"
+    )
+    val fgAnimated by animateColorAsState(
+        targetValue = if (selected) tint else MaterialTheme.colorScheme.onSurface,
+        animationSpec = tween(durationMillis = YataDur.micro, easing = YataEase.emphasized),
+        label = "selectChipFg"
+    )
+
+    PressableScaleBox(onClick = onClick, modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .defaultMinSize(minHeight = height)
+                .clip(UiShape.pill)
+                .background(bgAnimated)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (leading != null) {
+                leading()
+            } else if (dotColor != null) {
+                Box(modifier = Modifier.size(8.dp).background(dotColor, CircleShape))
+            }
+            Text(
+                text = label,
+                color = fgAnimated,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = 13.sp
+                ),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 160.dp)
+            )
+            AnimatedVisibility(
+                visible = selected && showCheck,
+                enter = expandHorizontally() + fadeIn(),
+                exit = shrinkHorizontally() + fadeOut()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = fgAnimated,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+    }
+}
+
+/** Dashed "create new" pill — handoff pattern for pickers (New tag / New project / Create new person). */
+@Composable
+fun YataDashedAddChip(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Dp = 34.dp,
+    iconSize: Dp = 13.dp,
+    fontSize: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified
+) {
+    val color = MaterialTheme.colorScheme.primary
+    PressableScaleBox(onClick = onClick, modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .defaultMinSize(minHeight = height)
+                .clip(UiShape.pill)
+                .dashedBorder(color)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, tint = color, modifier = Modifier.size(iconSize))
+            Text(
+                text = label,
+                color = color,
+                style = if (fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
+                    MaterialTheme.typography.labelMedium
+                } else {
+                    MaterialTheme.typography.labelMedium.copy(fontSize = fontSize)
+                }
+            )
+        }
+    }
+}
+
+private fun Modifier.dashedBorder(color: Color, strokeWidth: Dp = 1.5.dp, radius: Dp = 999.dp): Modifier =
+    this.then(
+        drawWithCache {
+            val stroke = strokeWidth.toPx()
+            val cornerPx = radius.toPx().coerceAtMost(size.minDimension / 2)
+            onDrawBehind {
+                drawRoundRect(
+                    color = color,
+                    style = Stroke(
+                        width = stroke,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+                    ),
+                    cornerRadius = CornerRadius(cornerPx, cornerPx)
+                )
+            }
+        }
+    )

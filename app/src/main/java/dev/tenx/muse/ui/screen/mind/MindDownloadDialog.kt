@@ -83,7 +83,7 @@ fun MindDownloadDialog(
                     }
                 }
                 is DownloadState.Ready ->
-                    Button(onClick = viewModel::dismissDownloadSheet) { Text("Start reflecting") }
+                    Button(onClick = viewModel::acknowledgeReady) { Text("Start reflecting") }
                 else -> Button(onClick = viewModel::startDownload) {
                     Text(if (download is DownloadState.Failed) "Retry" else "Download")
                 }

@@ -756,6 +756,29 @@ class AppDatabaseMigrationTest {
             .writableDatabase
     }
 
+    @Test
+    fun migrate31To32_createsJournalEntries() {
+        context.deleteDatabase(TEST_DB)
+        // Exported v31 schema opens a real version-31 database, so the migration runs
+        // against the exact shape production upgrades from.
+        helper.createDatabase(TEST_DB, 31).close()
+
+        // runMigrationsAndValidate also validates the result against exported 32.json.
+        val db = helper.runMigrationsAndValidate(TEST_DB, 32, true, AppDatabase.MIGRATION_31_32)
+        db.execSQL(
+            "INSERT INTO `journal_entries` " +
+                "(`id`,`sessionId`,`role`,`body`,`createdAt`,`updatedAt`,`moodTag`) " +
+                "VALUES ('j1','s1','user','hello',1,1,NULL)"
+        )
+        db.query("SELECT * FROM `journal_entries` WHERE `id` = 'j1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("s1", cursor.getString(cursor.getColumnIndexOrThrow("sessionId")))
+            assertEquals("user", cursor.getString(cursor.getColumnIndexOrThrow("role")))
+            assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("moodTag")))
+        }
+        db.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

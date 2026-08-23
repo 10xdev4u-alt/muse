@@ -1,6 +1,7 @@
 package com.mj.yata.data.local.db.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -9,7 +10,10 @@ import androidx.room.PrimaryKey
  * reflection) land as paired rows sharing a sessionId, so streaming can
  * append tokens to the assistant row without rewriting history.
  */
-@Entity(tableName = "journal_entries")
+@Entity(
+    tableName = "journal_entries",
+    indices = [Index("sessionId")]
+)
 data class JournalEntryEntity(
     @PrimaryKey val id: String,
     val sessionId: String,

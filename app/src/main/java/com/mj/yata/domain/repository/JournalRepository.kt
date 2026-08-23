@@ -12,6 +12,15 @@ import kotlinx.coroutines.flow.Flow
 interface JournalRepository {
     fun observeSession(sessionId: String): Flow<List<JournalEntry>>
 
+    /** One row per session, most recently started first. */
+    fun observeSessionSummaries(): Flow<List<com.mj.yata.domain.model.JournalSessionSummary>>
+
+    /** Rows of a session, for delete-with-undo. */
+    suspend fun snapshotForRestore(sessionId: String): List<JournalEntry>
+
+    /** Puts back a snapshot from [snapshotForRestore]. */
+    suspend fun restoreSession(entries: List<JournalEntry>)
+
     fun observeRecentSessions(): Flow<List<String>>
 
     suspend fun appendUserEntry(

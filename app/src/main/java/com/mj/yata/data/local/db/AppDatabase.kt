@@ -41,6 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun subtaskDao(): SubtaskDao
     abstract fun taskCommentDao(): TaskCommentDao
     abstract fun journalDao(): JournalDao
+    abstract fun journalSessionDao(): JournalSessionDao
 
     companion object {
         val MIGRATION_3_4 = object : Migration(3, 4) {

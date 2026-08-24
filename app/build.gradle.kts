@@ -30,8 +30,8 @@ android {
         applicationId = "dev.tenx.muse"
         minSdk = 26
         targetSdk = 35
-        versionCode = 100
-        versionName = "0.1.0-mind.1"
+        versionCode = 101
+        versionName = "0.1.1"
 
         // Stamped fresh into every build (not just release) so Help & About's "Build N.DDMMYYYYHHmm"
         // line reflects exactly when this particular APK was assembled, not just the day — the

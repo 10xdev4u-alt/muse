@@ -15,6 +15,26 @@ test-only changes belong in the commit message, not here, unless they change beh
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-24
+
+`versionCode 101`. The hardware-validation release: Mind survived first contact with a real device and got its bridge.
+
+### Added
+- JNI bridge shim (`native-bridge/`) enabling xybrid-kotlin 0.5.0 on-device — upstream AAR shipped without Java_ exports (filed upstream as xybrid-ai/xybrid#530)
+- Download dialog lifecycle: visible during active downloads/failures, Ready requires acknowledgement, dismissible first-run offer
+- Storage guard before model download; SHA256 verified against pinned hash
+- RAM guardrail: model unloads after 60 s backgrounded
+- Daily review grounded in real task data; session history with undo; empty states
+- Developer-companion persona by default
+
+### Fixed
+- Crash at launch: Hilt field access before super.onCreate() (#73)
+- Crash on send: UnsatisfiedLinkError chain (#77) — resolved via generated 85-trampoline JNI bridge from upstream C header (#79)
+
+### Changed
+- Package renamed to `dev.tenx.muse`; app name "Muse"; deep links muse://
+- Landing page rebuilt as full product specification (M-SPC-001), zero dependencies
+
 ## [0.1.0-mind.1] - 2026-08-23
 
 `versionCode 100`. First Muse release — the Mind feature rides behind a flag until the

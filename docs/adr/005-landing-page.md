@@ -25,3 +25,11 @@ Pages from main via Actions.
   tracker to an anti-tracking product.
 - When facts change (model size, phases), the page changes in the same PR
   discipline as code.
+
+## Amendment — 2026-08-24
+
+Product owner directed an upgrade to a ThreeUI-grade experience. Revised
+decision: third-party **static** CDN assets are now permitted (three.js,
+GSAP) for atmosphere and choreography. The unchanged core promise: still
+zero analytics, zero trackers, zero data collection — scripts render
+stars, nothing phones home. Fonts remain self-hosted.

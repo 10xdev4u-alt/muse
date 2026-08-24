@@ -3,626 +3,613 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Muse — a journal that talks back. Offline.</title>
-<meta name="description" content="An Android journaling companion with a real AI that runs entirely on your phone. No accounts. No cloud. No internet after one download.">
+<title>MUSE — ON-DEVICE AI JOURNAL · FULL SPECIFICATION · REV 0.1.1</title>
+<meta name="description" content="An Android journaling companion with a real AI that runs entirely on your phone. No accounts. No cloud. No internet after one download. Full product specification.">
 <style>
 @font-face{font-family:'Syne';font-weight:400 800;font-display:swap;src:url('fonts/syne-var.woff2') format('woff2')}
 @font-face{font-family:'JetBrains Mono';font-weight:400 500;font-display:swap;src:url('fonts/jbm-var.woff2') format('woff2')}
 
 :root{
-  --bg:#04050a;--ink:#eae8e1;--dim:#96a0b4;
-  --teal:#2dd4bf;--ember:#f5b04b;--violet:#7c6cf0;
-  --line:rgba(255,255,255,.09);--glass:rgba(13,17,27,.55);
+  --paper:#ECE9E1; --ink:#141310; --dim:#6d685f;
+  --acc:#FF4D00; --line:#141310;
   --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
   --disp:'Syne',system-ui,sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
-::selection{background:var(--teal);color:#03211b}
-.wrap{max-width:1120px;margin:0 auto;padding:0 26px}
+body{background:var(--paper);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+::selection{background:var(--acc);color:var(--paper)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(16px,3vw,40px)}
+a{color:inherit}
 
-/* ============ NEBULA CANVAS ============ */
-#nebula{position:fixed;inset:0;z-index:-5}
-.vignette{position:fixed;inset:0;z-index:-4;pointer-events:none;
-  background:radial-gradient(120% 90% at 50% 40%, transparent 40%, rgba(4,5,10,.55) 78%, rgba(4,5,10,.9) 100%)}
-.cursor-dot{position:fixed;top:0;left:0;width:7px;height:7px;border-radius:50%;
-  background:var(--teal);z-index:99;pointer-events:none;mix-blend-mode:screen;
-  transform:translate(-50%,-50%)}
-.cursor-ring{position:fixed;top:0;left:0;width:34px;height:34px;border-radius:50%;
-  border:1px solid rgba(45,212,191,.45);z-index:99;pointer-events:none;mix-blend-mode:screen;
-  transform:translate(-50%,-50%);transition:width .3s,height .3s,border-color .3s}
-.cursor-ring.hot{width:56px;height:56px;border-color:rgba(245,176,75,.6)}
-@media (pointer:fine){ body{cursor:none} a,button,input{cursor:none} }
-@media (pointer:coarse){ .cursor-dot,.cursor-ring{display:none} }
-.fallback-glow{position:fixed;inset:0;z-index:-6;display:none;
-  background:
-   radial-gradient(60vw 60vw at 15% -10%, rgba(45,212,191,.14), transparent 60%),
-   radial-gradient(50vw 50vw at 90% 30%, rgba(124,108,240,.12), transparent 60%),
-   radial-gradient(45vw 45vw at 40% 100%, rgba(245,176,75,.08), transparent 60%),
-   var(--bg);}
-.grain{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.05;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+body::before{content:'';position:fixed;inset:10px;border:1px solid var(--line);pointer-events:none;z-index:60}
+@media(max-width:700px){body::before{inset:6px}}
 
-/* ============ NAV ============ */
-nav.top{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:80;
-  display:flex;align-items:center;gap:34px;padding:12px 26px;border-radius:999px;
-  background:rgba(8,10,16,.62);border:1px solid var(--line);backdrop-filter:blur(16px);
-  transition:box-shadow .4s}
-nav.top:hover{box-shadow:0 12px 44px -12px rgba(45,212,191,.28)}
-nav .logo{font-family:var(--mono);letter-spacing:.22em;font-size:14px;color:var(--dim)}
-nav .logo b{color:var(--ink);font-weight:500}
-nav a.lk{color:var(--dim);text-decoration:none;font-family:var(--mono);font-size:12.5px;transition:color .3s}
-nav a.lk:hover{color:var(--teal)}
-nav .gh{display:flex;align-items:center;gap:7px;color:var(--ink)}
-nav .gh svg{width:15px;height:15px;fill:currentColor}
+/* top bar */
+.bar-top{border-bottom:1px solid var(--line)}
+.bar-top .wrap{display:flex;align-items:stretch;height:52px;padding:0}
+.bar-top>*{display:flex;align-items:center;padding:0 18px;border-right:1px solid var(--line)}
+.brand{font-family:var(--disp);font-weight:800;font-size:17px}
+.brand i{font-style:normal;color:var(--acc)}
+.bar-top nav{gap:24px}
+.bar-top nav a{text-decoration:none;font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--dim)}
+.bar-top nav a:hover{color:var(--acc)}
+.st{margin-left:auto;border-left:none!important;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em}
+.st b{color:var(--acc);font-weight:500;margin-right:8px}
+@media(max-width:820px){.bar-top nav,.bar-top .st{display:none}}
 
-/* ============ HERO ============ */
-.hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;position:relative;padding:140px 0 80px}
-.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--teal);
-  display:inline-flex;align-items:center;gap:12px;margin-bottom:28px;opacity:0;animation:fadeup 1s ease .15s forwards}
-.kicker::before{content:'';width:36px;height:1px;background:var(--teal)}
-h1{font-family:var(--disp);font-weight:800;font-size:clamp(48px,9vw,110px);
-  line-height:.96;letter-spacing:-.03em;max-width:11ch}
-h1 .w{display:inline-block;overflow:hidden;vertical-align:bottom;margin-right:.22em}
-h1 .w>span{display:inline-block;transform:translateY(115%) rotate(4deg);opacity:0;
-  animation:wordrise 1s cubic-bezier(.16,.84,.24,1) forwards}
-h1 em{font-style:normal;background:linear-gradient(92deg,var(--teal) 10%,var(--ember) 90%);
-  -webkit-background-clip:text;background-clip:text;color:transparent}
-@keyframes wordrise{to{transform:none;opacity:1}}
-.d1 span{animation-delay:.20s}.d2 span{animation-delay:.32s}.d3 span{animation-delay:.46s}
-.hero .sub{margin-top:32px;font-size:clamp(16px,2vw,19.5px);color:var(--dim);max-width:58ch;
-  opacity:0;animation:fadeup 1s ease .75s forwards}
-.hero .sub strong{color:var(--ink);font-weight:550}
-.badges{display:flex;flex-wrap:wrap;gap:9px;margin-top:34px;opacity:0;animation:fadeup 1s ease .95s forwards}
-.badge{font-family:var(--mono);font-size:11.5px;color:var(--dim);padding:7px 14px;border-radius:999px;
-  border:1px solid var(--line);background:rgba(255,255,255,.03)}
-.badge b{color:var(--teal);font-weight:500}
-.cta-row{margin-top:44px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;
-  opacity:0;animation:fadeup 1s ease 1.15s forwards}
-.btn{position:relative;font-family:var(--mono);font-size:13.5px;font-weight:500;text-decoration:none;
-  padding:15px 30px;border-radius:999px;overflow:hidden;
-  background:var(--teal);color:#03211b;border:none;cursor:pointer;
-  transition:transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s}
-.btn::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);
-  transform:translateX(-120%);transition:transform .7s}
-.btn:hover{transform:translateY(-2px);box-shadow:0 10px 40px -8px rgba(45,212,191,.5)}
-.btn:hover::after{transform:translateX(120%)}
-.btn.ghost{background:rgba(255,255,255,.04);color:var(--ink);border:1px solid var(--line)}
-.btn.ghost:hover{border-color:var(--teal);color:var(--teal);box-shadow:none}
-.scroll-hint{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);
-  font-family:var(--mono);font-size:10.5px;letter-spacing:.3em;color:var(--dim);
-  opacity:0;animation:fadeup 1s ease 1.6s forwards;text-align:center}
-.scroll-hint::after{content:'↓';display:block;margin-top:8px;animation:bob 1.6s ease-in-out infinite}
-@keyframes bob{50%{transform:translateY(7px)}}
-@keyframes fadeup{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
-
-/* ============ MARQUEE ============ */
-.marquee{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-  padding:20px 0;overflow:hidden;white-space:nowrap;background:rgba(255,255,255,.015)}
-.mq-track{display:inline-flex;gap:56px;animation:mq 30s linear infinite;padding-right:56px}
-.mq-track span{font-family:var(--mono);font-size:12.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
-.mq-track span i{font-style:normal;color:var(--teal);margin-right:14px}
-.mq-track span:nth-child(even){color:var(--ink)}
+/* ticker */
+.ticker{background:var(--ink);color:var(--paper);overflow:hidden;white-space:nowrap;border-bottom:1px solid var(--line);padding:11px 0}
+.tk{display:inline-flex;animation:mq 30s linear infinite}
+.tk span{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;padding:0 30px}
+.tk span:nth-child(odd){color:var(--acc)}
 @keyframes mq{to{transform:translateX(-50%)}}
 
-/* ============ SECTIONS COMMON ============ */
-section{padding:130px 0}
-.sec-head h2{font-family:var(--disp);font-weight:800;font-size:clamp(34px,5vw,58px);
-  letter-spacing:-.02em;line-height:1.04;margin-bottom:16px}
-.sec-head p.lead{color:var(--dim);max-width:64ch;font-size:17.5px}
-.reveal{opacity:0;transform:translateY(34px)}
+/* hero */
+.hero{border-bottom:1px solid var(--line)}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);min-height:calc(100svh - 95px)}
+@media(max-width:900px){.hero .wrap{grid-template-columns:1fr}}
+.hleft{padding:clamp(36px,6vh,80px) clamp(20px,3vw,48px) clamp(30px,5vh,64px) 0;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--line)}
+@media(max-width:900px){.hleft{border-right:none;border-bottom:1px solid var(--line)}}
+.idx{font-family:var(--mono);font-size:11px;letter-spacing:.24em;color:var(--dim);margin-bottom:20px}
+.idx b{color:var(--acc);font-weight:500}
+h1{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:clamp(42px,6.8vw,98px);line-height:.92;letter-spacing:-.02em}
+h1 .row{display:block;overflow:hidden}
+h1 .row>span{display:inline-block;transform:translateY(105%);animation:snap .01s steps(2,jump-none) both}
+h1 .row:nth-child(1)>span{animation-delay:.05s}h1 .row:nth-child(2)>span{animation-delay:.13s}
+h1 .row:nth-child(3)>span{animation-delay:.21s}
+h1 .row:nth-child(4)>span{color:transparent;-webkit-text-stroke:2px var(--ink);animation-delay:.29s}
+@keyframes snap{to{transform:none}}
+.sub{margin-top:24px;max-width:54ch;font-size:15.5px;color:var(--dim)}
+.sub strong{color:var(--ink);font-weight:550}
+.specs{display:flex;flex-wrap:wrap;margin-top:32px;border:1px solid var(--line)}
+.spec{flex:1 1 auto;padding:12px 16px;border-right:1px solid var(--line);font-family:var(--mono);font-size:10.5px;letter-spacing:.14em}
+.spec:last-child{border-right:none}
+.spec b{display:block;color:var(--acc);font-weight:500;font-size:15px;margin-bottom:3px}
+.cta-row{margin-top:36px;display:flex;gap:0;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;padding:17px 34px;
+  background:var(--ink);color:var(--paper);border:1px solid var(--ink);text-decoration:none;cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s}
+.btn:hover{background:var(--acc);border-color:var(--acc);color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.ghost:hover{background:var(--ink);color:var(--paper)}
 
-/* steps */
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:56px}
-.card{position:relative;border-radius:20px;padding:30px 26px;overflow:hidden;
-  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
-  border:1px solid var(--line);transition:transform .45s cubic-bezier(.2,.7,.2,1),border-color .45s}
-.card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .5s;
-  background:radial-gradient(420px 200px at var(--mx,50%) -20%,rgba(45,212,191,.12),transparent 70%)}
-.card:hover{transform:translateY(-8px);border-color:rgba(45,212,191,.35)}
-.card:hover::before{opacity:1}
-.card .n{font-family:var(--mono);font-size:11.5px;color:var(--teal);letter-spacing:.24em}
-.card h3{font-family:var(--disp);font-size:21px;font-weight:700;margin:14px 0 9px}
-.card p{font-size:14.5px;color:var(--dim)}
+.fig{position:relative;border-left:1px solid var(--line);display:flex;flex-direction:column}
+@media(max-width:900px){.fig{border-left:none;border-top:1px solid var(--line)}}
+.figbar{display:flex;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--dim)}
+.figbar b{color:var(--acc);font-weight:500}
+#wire{flex:1;width:100%;min-height:340px;display:block;touch-action:none;cursor:crosshair}
+.figlegend{border-top:1px solid var(--line);padding:10px 18px;display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--dim)}
+.figlegend i{font-style:normal;color:var(--acc)}
 
-/* ============ LIVE DEMO ============ */
-.demo-shell{margin-top:60px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,430px);
-  gap:70px;align-items:center}
-@media(max-width:900px){.demo-shell{grid-template-columns:1fr}}
-.try{
-  border-radius:22px;border:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.01));
-  padding:30px;display:flex;flex-direction:column;gap:16px;min-height:380px;
-}
-.try .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.26em;color:var(--ember);text-transform:uppercase}
-#chatlog{display:flex;flex-direction:column;gap:12px;flex:1;max-height:330px;overflow-y:auto;scrollbar-width:thin}
-.bubble{max-width:86%;padding:14px 17px;border-radius:17px;font-size:15px;line-height:1.55;animation:pop .45s cubic-bezier(.2,.9,.3,1.2)}
-.bubble.u{align-self:flex-end;background:linear-gradient(135deg,#182236,#121a29);border-bottom-right-radius:5px;color:#e0e6f1}
-.bubble.m{align-self:flex-start;background:linear-gradient(180deg,rgba(45,212,191,.09),rgba(45,212,191,.03));
-  border:1px solid rgba(45,212,191,.24);border-bottom-left-radius:5px}
-.bubble.m::before{content:'muse · simulated preview';display:block;font-family:var(--mono);
-  font-size:10px;letter-spacing:.2em;color:var(--teal);margin-bottom:6px}
-@keyframes pop{from{opacity:0;transform:scale(.94) translateY(8px)}}
-.typing{display:inline-flex;gap:5px;padding:6px 2px}
-.typing i{width:7px;height:7px;border-radius:50%;background:var(--teal);opacity:.5;animation:tdot 1s ease-in-out infinite}
-.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
-@keyframes tdot{40%{opacity:1;transform:translateY(-4px)}}
-.try form{display:flex;gap:10px}
-.try input{flex:1;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:999px;
-  padding:13px 20px;color:var(--ink);font-family:inherit;font-size:14.5px;outline:none;transition:border-color .3s}
-.try input:focus{border-color:var(--teal)}
-.try input::placeholder{color:var(--dim)}
-.try .send{background:var(--teal);border:none;width:47px;height:47px;border-radius:50%;cursor:pointer;
-  color:#03211b;font-size:17px;transition:transform .3s,box-shadow .3s;flex-shrink:0}
-.try .send:hover{transform:scale(1.08) rotate(90deg);box-shadow:0 0 26px rgba(45,212,191,.4)}
+/* sections */
+section{border-bottom:1px solid var(--line)}
+.shead{display:grid;grid-template-columns:auto 1fr;gap:clamp(16px,3vw,44px);align-items:end;
+  padding:clamp(40px,7vh,84px) 0 clamp(24px,4vh,44px)}
+.snum{font-family:var(--disp);font-weight:800;font-size:clamp(40px,6vw,84px);line-height:.85;
+  color:transparent;-webkit-text-stroke:1.5px var(--ink)}
+.shead h2{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:clamp(27px,4vw,50px);
+  line-height:.98;letter-spacing:-.01em}
+.shead p.lead{margin-top:13px;max-width:70ch;color:var(--dim);font-size:15px}
+.shead p.lead strong{color:var(--ink);font-weight:550}
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .5s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none}}
+.mut{color:var(--dim)}
 
-/* phone */
-.phone-zone{display:flex;justify-content:center;perspective:1200px}
-.phone{width:280px;height:576px;border-radius:44px;position:relative;
-  background:linear-gradient(160deg,#151b28,#0a0d14);
-  border:1px solid rgba(255,255,255,.15);
-  box-shadow:0 50px 110px -35px rgba(0,0,0,.85),0 0 90px -18px rgba(45,212,191,.25),inset 0 0 0 6px #000;
-  transform:rotateY(-9deg) rotateX(4deg);transition:transform .8s cubic-bezier(.2,.7,.2,1);
-  animation:hover-float 7s ease-in-out infinite}
-.phone-zone:hover .phone{transform:rotateY(0) rotateX(2deg)}
-@keyframes hover-float{50%{transform:rotateY(-9deg) translateY(-16px)}}
-.phone::before{content:'';position:absolute;top:15px;left:50%;transform:translateX(-50%);
-  width:88px;height:24px;border-radius:999px;background:#000;z-index:2}
-.screen{position:absolute;inset:12px;border-radius:34px;overflow:hidden;
-  background:radial-gradient(150% 90% at 15% 0%,#101827,#070a11 65%);
-  padding:46px 15px 15px;display:flex;flex-direction:column;gap:9px}
-.mini-title{font-family:var(--mono);font-size:9.5px;letter-spacing:.3em;color:var(--dim);text-align:center;margin-bottom:4px}
-.sb{padding:10px 13px;border-radius:14px;font-size:11.5px;line-height:1.5}
-.sb.u{align-self:flex-end;background:#1b2740;color:#dde3ef;border-bottom-right-radius:4px}
-.sb.m{align-self:flex-start;max-width:88%;background:rgba(45,212,191,.08);
-  border:1px solid rgba(45,212,191,.22);color:#cfeee8;border-bottom-left-radius:4px}
-.sb.m b{display:block;color:var(--teal);font-family:var(--mono);font-weight:500;font-size:8.5px;letter-spacing:.22em;margin-bottom:4px}
-.input-bar{margin-top:auto;display:flex;gap:8px;align-items:center;border:1px solid var(--line);
-  border-radius:12px;padding:9px 12px;background:rgba(255,255,255,.03)}
-.input-bar s{text-decoration:none;color:var(--dim);font-size:10.5px;font-family:var(--mono)}
-.input-bar i{width:15px;height:15px;border-radius:50%;background:var(--teal);opacity:.85;margin-left:auto}
-.chip{position:absolute;font-family:var(--mono);font-size:10.5px;padding:8px 14px;border-radius:999px;
-  background:rgba(8,10,16,.8);border:1px solid var(--line);backdrop-filter:blur(10px);color:var(--dim);
-  white-space:nowrap;animation:hover-float 6s ease-in-out infinite}
-.chip.c1{top:12%;left:-16%;color:var(--teal);border-color:rgba(45,212,191,.3)}
-.chip.c2{bottom:20%;right:-14%;color:var(--ember);border-color:rgba(245,176,75,.3);animation-delay:.8s}
-.chip.c3{top:44%;right:-20%;animation-delay:1.6s}
-@media(max-width:1100px){.chip{display:none}}
+/* tables */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th,.tbl td{border:1px solid var(--line);text-align:left;padding:13px clamp(12px,1.6vw,22px);vertical-align:top;font-size:14px}
+.tbl th{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);font-weight:400;background:rgba(20,19,16,.03)}
+.tbl td:first-child{font-family:var(--mono);font-size:11px;letter-spacing:.1em;white-space:nowrap}
+.tbl td em{font-style:normal;color:var(--acc);font-weight:500}
+.tbl tr:hover td{background:rgba(255,77,0,.05)}
 
-/* terminal */
-.term{border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#06080e;
-  box-shadow:0 40px 100px -35px rgba(0,0,0,.8);margin-top:56px}
-.tbar{display:flex;gap:7px;padding:14px 17px;background:rgba(255,255,255,.04);border-bottom:1px solid var(--line)}
-.tbar i{width:11px;height:11px;border-radius:50%}
-.tbar i:nth-child(1){background:#ff5f57}.tbar i:nth-child(2){background:#febc2e}.tbar i:nth-child(3){background:#28c840}
-.tbar span{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)}
-.term pre{padding:26px 24px;font-family:var(--mono);font-size:13px;line-height:1.95;color:#b7c2d4;white-space:pre-wrap;overflow-x:auto}
-.p{color:var(--teal)}.u{color:var(--ember)}.ok{color:#69db7c}
-.caret{display:inline-block;width:9px;height:17px;background:var(--teal);vertical-align:-3px;animation:blink 1s steps(1) infinite}
+/* feature matrix */
+.caps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;margin-top:14px}
+.cap{border:1px solid var(--line);padding:20px 20px 18px;transition:border-color .15s,background .15s}
+.cap:hover{background:rgba(255,77,0,.045)}
+.cap .code{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--acc)}
+.cap h4{font-family:var(--disp);font-weight:700;font-size:16.5px;margin:9px 0 6px;text-transform:uppercase;letter-spacing:.01em}
+.cap p{font-size:13.5px;color:var(--dim)}
+
+/* pipeline */
+.pipe{display:flex;flex-wrap:wrap;border:1px solid var(--line);margin-top:8px}
+.stage{flex:1 1 200px;padding:20px;border-right:1px solid var(--line);position:relative;min-height:130px}
+.stage:last-child{border-right:none}
+.stage .ph{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--acc)}
+.stage h5{font-family:var(--disp);font-weight:700;font-size:16px;margin:8px 0 6px;text-transform:uppercase}
+.stage p{font-size:12.5px;color:var(--dim)}
+.stage .arrow{position:absolute;right:-9px;top:50%;transform:translateY(-50%);z-index:2;
+  width:17px;height:17px;background:var(--paper);border:1px solid var(--line);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;color:var(--acc)}
+@media(max-width:760px){.stage .arrow{display:none}.stage{border-bottom:1px solid var(--line)}.stage:last-child{border-bottom:none}}
+
+/* demo + phone (same system as before) */
+.demo-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,400px);border-top:1px solid var(--line)}
+@media(max-width:900px){.demo-grid{grid-template-columns:1fr}}
+.try-pane{padding:clamp(22px,3.5vw,44px);border-right:1px solid var(--line)}
+@media(max-width:900px){.try-pane{border-right:none;border-bottom:1px solid var(--line)}}
+.simtag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.22em;
+  padding:5px 10px;border:1px solid var(--acc);color:var(--acc);margin-bottom:20px}
+#chatlog{display:flex;flex-direction:column;gap:13px;min-height:290px;max-height:370px;overflow-y:auto;
+  scrollbar-width:thin;padding-right:6px}
+.msg{border:1px solid var(--line);padding:13px 16px;font-size:14.5px;max-width:92%;animation:stamp .12s steps(2,jump-none)}
+.msg.u{align-self:flex-end;background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.msg.m::before{content:'MUSE // REFLECTION';display:block;font-family:var(--mono);font-size:9px;
+  letter-spacing:.24em;color:var(--acc);margin-bottom:7px}
+@keyframes stamp{from{transform:translateY(6px);opacity:.4}}
+.statusline{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--dim);margin:15px 0 10px;min-height:14px}
+.statusline b{color:var(--acc);font-weight:500}
+form#chatform{display:flex;border:1px solid var(--ink)}
+#chatin{flex:1;border:none;background:transparent;padding:15px 18px;font-family:var(--mono);font-size:13.5px;color:var(--ink);outline:none}
+#chatin::placeholder{color:var(--dim)}
+.send{border:none;border-left:1px solid var(--ink);background:var(--ink);color:var(--paper);
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;padding:0 26px;cursor:pointer;transition:all .12s}
+.send:hover{background:var(--acc);color:var(--ink);border-color:var(--acc)}
+.phone-pane{padding:clamp(22px,3.5vw,44px);background:repeating-linear-gradient(-45deg,transparent 0 14px,rgba(20,19,16,.035) 14px 15px)}
+.phone{width:264px;height:556px;margin:0 auto;border:1.5px solid var(--ink);position:relative;background:var(--paper);box-shadow:10px 10px 0 var(--ink)}
+.phone::before{content:'';position:absolute;top:12px;left:50%;transform:translateX(-50%);width:74px;height:18px;border:1.5px solid var(--ink);border-radius:99px;z-index:2}
+.screen{position:absolute;inset:10px;overflow:hidden;padding:42px 12px 12px;display:flex;flex-direction:column;gap:8px}
+.mini-title{font-family:var(--mono);font-size:9px;letter-spacing:.32em;text-align:center;color:var(--dim)}
+.sb{border:1px solid var(--line);padding:9px 11px;font-size:10.5px;line-height:1.45;background:var(--paper)}
+.sb.u{align-self:flex-end;background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.sb.m b{display:block;font-family:var(--mono);font-size:8px;letter-spacing:.26em;color:var(--acc);margin-bottom:4px}
+.input-bar{margin-top:auto;display:flex;border:1px solid var(--ink);height:34px;align-items:center;padding:0 10px;justify-content:space-between}
+.input-bar s{text-decoration:none;font-family:var(--mono);font-size:9.5px;color:var(--dim)}
+.input-bar i{width:12px;height:12px;background:var(--acc)}
+.ph-cap{margin-top:16px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:var(--dim);text-align:center}
+
+/* transcript */
+.term{border:1px solid var(--line)}
+.term pre{padding:clamp(20px,3vw,34px);font-family:var(--mono);font-size:12.5px;line-height:2;white-space:pre-wrap;color:#3c3931}
+.p{color:var(--acc)}.u{font-weight:500}.ok{color:var(--ink)}
+.caret{display:inline-block;width:8px;height:15px;background:var(--acc);vertical-align:-2px;animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
 
-/* privacy bento */
-.bento{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:54px}
-.tile{border-radius:20px;padding:28px 24px;border:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));
-  transition:border-color .4s,transform .4s}
-.tile:hover{border-color:rgba(45,212,191,.35);transform:translateY(-5px)}
-.tile.big{grid-column:span 2}
-@media(max-width:700px){.tile.big{grid-column:span 1}}
-.tile .q{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:12px}
-.tile p{color:var(--dim);font-size:14.5px}
-.tile p strong{color:var(--ink);font-weight:550}
-.tile p em{font-style:normal;color:var(--teal)}
-
 /* stats */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:54px}
-.stat{font-family:var(--mono);text-align:left;padding:30px 26px;border-radius:18px;
-  border:1px solid var(--line);background:rgba(255,255,255,.02)}
-.stat b{display:block;font-size:38px;font-weight:500;letter-spacing:-.02em;line-height:1.1}
-.stat b i{font-style:normal;color:var(--ember)}
-.stat span{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.stat{padding:clamp(24px,4vh,44px) clamp(18px,2.5vw,34px);border:1px solid var(--line);margin:-1px 0 0 -1px}
+.stat b{display:block;font-family:var(--disp);font-weight:800;font-size:clamp(38px,4.6vw,66px);line-height:1;letter-spacing:-.02em}
+.stat b i{font-style:normal;color:var(--acc)}
+.stat span{display:block;margin-top:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+
+/* faq */
+details{border:1px solid var(--line);margin-bottom:-1px;background:var(--paper)}
+summary{list-style:none;cursor:pointer;padding:19px clamp(14px,2vw,24px);
+  display:flex;justify-content:space-between;align-items:center;gap:14px;
+  font-family:var(--disp);font-weight:700;font-size:15.5px;text-transform:uppercase;letter-spacing:.02em}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'+';font-family:var(--mono);color:var(--acc);font-size:19px;transition:transform .15s}
+details[open] summary::after{content:'–'}
+details[open]{background:rgba(255,77,0,.04)}
+details .a{padding:0 clamp(14px,2vw,24px) 20px;color:var(--dim);font-size:14px;max-width:75ch}
+details .a strong{color:var(--ink)}
+
+/* roadmap */
+.rm{display:flex;flex-direction:column}
+.rm-row{display:grid;grid-template-columns:120px 1fr auto;gap:16px;align-items:center;
+  border:1px solid var(--line);margin-bottom:-1px;padding:15px clamp(14px,2vw,24px)}
+.rm-row .st-tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;padding:5px 10px;
+  border:1px solid var(--line);justify-self:start}
+.rm-row .done .st-tag,.rm-row[data-s="shipped"] .st-tag{border-color:var(--acc);color:var(--acc)}
+.rm-row h5{font-family:var(--disp);font-weight:700;font-size:15.5px;text-transform:uppercase}
+.rm-row p{font-size:12.5px;color:var(--dim)}
+@media(max-width:640px){.rm-row{grid-template-columns:1fr}}
 
 /* cta */
-.cta{margin-top:30px;text-align:center;padding:86px 28px;border-radius:26px;position:relative;overflow:hidden;
-  border:1px solid var(--line);
-  background:radial-gradient(85% 130% at 50% 118%,rgba(45,212,191,.17),transparent 62%),rgba(255,255,255,.02)}
-.cta h2{font-family:var(--disp);font-weight:800;font-size:clamp(30px,4.6vw,52px);letter-spacing:-.02em;margin-bottom:14px}
-.cta p{color:var(--dim);max-width:54ch;margin:0 auto 32px}
-
-footer{padding:56px 0 74px;border-top:1px solid var(--line);color:var(--dim);font-size:13px}
-footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
-footer a{color:var(--dim)}footer a:hover{color:var(--teal)}
+.cta-sec{background:var(--ink);color:var(--paper)}
+.cta-sec .snum{-webkit-text-stroke-color:var(--paper)}
+.cta-sec h2{color:var(--paper)}
+.cta-inner{padding:clamp(50px,9vh,110px) 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:clamp(24px,4vw,60px);align-items:center}
+.cta-copy>p{color:#b9b4a8;max-width:46ch;margin-top:14px;font-size:15px}
+.btn.inv{background:var(--acc);border-color:var(--acc);color:var(--ink)}
+.btn.inv:hover{background:var(--paper);border-color:var(--paper);color:var(--ink)}
+.cta-list{list-style:none}
+.cta-list li{border-top:1px solid rgba(236,233,225,.25);padding:12px 0;font-family:var(--mono);
+  font-size:11.5px;letter-spacing:.16em;text-transform:uppercase}
+.cta-list li:last-child{border-bottom:1px solid rgba(236,233,225,.25)}
+.cta-list li i{font-style:normal;color:var(--acc);margin-right:12px}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-top:22px;padding-bottom:34px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:#b9b4a8}
+footer .wrap{border-top:1px solid rgba(236,233,225,.25)}
+footer a:hover{color:var(--acc)}
 
 @media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important}
+  *,*::before,*::after{animation-duration:.01ms!important;transition:none!important}
   .reveal{opacity:1;transform:none}
 }
 </style>
 </head>
 <body>
 
-<canvas id="nebula"></canvas>
-<div class="fallback-glow" id="fbglow"></div>
-<div class="vignette" aria-hidden="true"></div>
-<div class="grain" aria-hidden="true"></div>
-<div class="cursor-dot" id="cdot" aria-hidden="true"></div>
-<div class="cursor-ring" id="cring" aria-hidden="true"></div>
+<div class="bar-top">
+  <div class="wrap">
+    <div class="brand">MUSE<i>.</i></div>
+    <nav>
+      <a href="#capabilities">CAPABILITIES</a><a href="#demo">SIMULATION</a><a href="#model">MODEL</a>
+      <a href="#requirements">REQUIREMENTS</a><a href="#privacy">PRIVACY</a><a href="#faq">FAQ</a><a href="#roadmap">ROADMAP</a>
+    </nav>
+    <div class="st"><b>●</b>SYSTEM ONLINE — REV 0.1.1</div>
+  </div>
+</div>
 
-<nav class="top">
-  <span class="logo">muse<b>_</b></span>
-  <a class="lk" href="#demo">demo</a>
-  <a class="lk" href="#how">how</a>
-  <a class="lk" href="#privacy">privacy</a>
-  <a class="lk gh" href="https://github.com/10xdev4u-alt/muse" target="_blank" rel="noopener">
-    <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-    star us
-  </a>
-</nav>
+<div class="ticker" aria-hidden="true"><div class="tk" id="tk">
+  <span>FULL PRODUCT SPECIFICATION</span><span>RUNS IN AIRPLANE MODE</span><span>LFM2.5 · 1.2B PARAMS ON CPU</span>
+  <span>ZERO TELEMETRY</span><span>SHA256-PINNED WEIGHTS</span><span>APACHE-2 RUNTIME · MIT APP</span>
+</div></div>
 
 <!-- ================= HERO ================= -->
-<div class="hero wrap">
-  <span class="kicker">on-device ai · android · airplane-mode native</span>
-  <h1>
-    <span class="w d1"><span>A</span></span>
-    <span class="w d1"><span>journal</span></span>
-    <span class="w d2"><span>that</span> <span>talks</span></span>
-    <span class="w d3"><span>back.</span></span>
-    <span class="w d3"><em>Offline.</em></span>
-  </h1>
-  <p class="sub">Muse is an Android journal with a <strong>real language model living inside it</strong>.
-    Write what's on your mind — it reflects back with questions instead of advice.
-    Everything runs on your phone. <strong>Airplane mode is the intended way to use it.</strong></p>
-  <div class="badges">
-    <span class="badge"><b>●</b> 100% on-device inference</span>
-    <span class="badge">no accounts</span>
-    <span class="badge">no api keys</span>
-    <span class="badge">biometric lock</span>
-    <span class="badge">MIT</span>
-  </div>
-  <div class="cta-row">
-    <a class="btn magnetic" href="https://github.com/10xdev4u-alt/muse/releases">Download APK</a>
-    <a class="btn ghost magnetic" href="#demo">Watch it think ↓</a>
-  </div>
-  <div class="scroll-hint">scroll</div>
-</div>
-
-<!-- ================= MARQUEE ================= -->
-<div class="marquee" aria-hidden="true">
-  <div class="mq-track" id="mq">
-    <span><i>◆</i>runs in airplane mode</span><span><i>◆</i>lfm2.5 · 1.2b params on your cpu</span>
-    <span><i>◆</i>zero telemetry</span><span><i>◆</i>sha256-pinned weights</span>
-    <span><i>◆</i>biometric gated</span><span><i>◆</i>task-grounded reflections</span>
-    <span><i>◆</i>apache-2 runtime · mit app</span>
-  </div>
-</div>
-
-<!-- ================= HOW ================= -->
-<section id="how">
+<div class="hero">
   <div class="wrap">
-    <div class="sec-head">
-      <h2 class="reveal">Three moves.<br>No internet.</h2>
-      <p class="lead reveal">One 731 MB model arrives over Wi-Fi the first time you open Mind. After that, the radio is dead weight — Muse never calls home.</p>
+    <div class="hleft">
+      <div class="idx">DOC <b>M-SPC-001</b> — FULL PRODUCT SPECIFICATION · REV 0.1.1</div>
+      <h1>
+        <span class="row"><span>A journal</span></span>
+        <span class="row"><span>that talks</span></span>
+        <span class="row"><span>back.</span></span>
+        <span class="row"><span>OFFLINE</span></span>
+      </h1>
+      <p class="sub">Muse is an Android journal with <strong>a real language model living inside it</strong>.
+        You write; it reflects. Everything runs on your phone — <strong>airplane mode is the intended way to use it.</strong>
+        This page is the complete specification: capabilities, model, requirements, privacy posture, roadmap.</p>
+      <div class="specs">
+        <div class="spec"><b>LFM2.5</b>1.2B PARAMS · Q4_K_M</div>
+        <div class="spec"><b>731 MB</b>ONE-TIME DOWNLOAD</div>
+        <div class="spec"><b>0 KB</b>NETWORK AFTER</div>
+        <div class="spec"><b>$0</b>FOREVER</div>
+      </div>
+      <div class="cta-row">
+        <a class="btn" href="https://github.com/10xdev4u-alt/muse/releases">GET THE APK ↓</a>
+        <a class="btn ghost" href="#demo">RUN SIMULATION</a>
+      </div>
     </div>
-    <div class="steps">
-      <div class="card reveal"><div class="n">01 / POUR</div><h3>Pour it out</h3><p>Type raw. Your words stay yours — plain text, saved locally, rendered exactly as written.</p></div>
-      <div class="card reveal"><div class="n">02 / REFLECT</div><h3>Get reflected</h3><p>The model mirrors what you wrote. It doesn't lecture, diagnose, or cheerlead — it hands your own thought back to you, sharper.</p></div>
-      <div class="card reveal"><div class="n">03 / GROUND</div><h3>See your day honestly</h3><p>Once daily it reads your actual task history and leaves three grounded prompts about how today really went.</p></div>
+    <div class="fig">
+      <div class="figbar"><span><b>FIG. 01</b> — THOUGHT ENGINE, ROTATING</span><span>DRAG TO SPIN · CLICK TO EXCITE</span></div>
+      <canvas id="wire"></canvas>
+      <div class="figlegend"><span>VANILLA CANVAS. ZERO FRAMEWORKS. ZERO CDNS.</span><span><i>▲</i> LIVE RENDER</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 00 MANIFEST ================= -->
+<section id="manifest">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">00</div>
+      <div><h2>Manifest.</h2>
+      <p class="lead">What ships, and where each piece comes from. <strong>Every layer is inspectable.</strong></p></div>
+    </div>
+    <table class="tbl reveal">
+      <tr><th>COMPONENT</th><th>WHAT IT IS</th><th>SOURCE</th><th>LICENSE</th></tr>
+      <tr><td>MUSE APP</td><td>The Android journal — Compose UI, Room data, Mind tab, this whole experience</td><td>this repository</td><td>MIT</td></tr>
+      <tr><td>XYBRID RUNTIME</td><td>On-device inference engine wrapping llama.cpp; loads and streams the model</td><td><a href="https://github.com/xybrid-ai/xybrid">xybrid-ai/xybrid</a> via Maven Central</td><td>Apache-2.0</td></tr>
+      <tr><td>LFM2.5 WEIGHTS</td><td>LFM2.5-1.2B-Instruct, Q4_K_M quantization — the thinking itself</td><td><a href="https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF">LiquidAI on HuggingFace</a>, fetched once by you</td><td>LFM Open License v1.0</td></tr>
+      <tr><td>YATA FOUNDATION</td><td>Task-manager base: projects, lists, tags, analytics, widgets, backups</td><td><a href="https://github.com/rjwarrier/yata">rjwarrier/yata</a>, rewritten with permission</td><td>MIT (this repo)</td></tr>
+      <tr><td>JNI BRIDGE</td><td>Hand-generated JNI shim enabling the Kotlin SDK on-device (<a href="https://github.com/xybrid-ai/xybrid/issues/530">upstream bug #530</a>)</td><td><code>native-bridge/</code> in this repo</td><td>MIT</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= 01 CAPABILITIES ================= -->
+<section id="capabilities">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">01</div>
+      <div><h2>Capability matrix.</h2>
+      <p class="lead">What Muse does today, shipped — not promised.</p></div>
+    </div>
+    <div class="caps reveal">
+      <div class="cap"><div class="code">CAP_001</div><h4>Streaming reflection</h4><p>Type a thought; tokens stream back at ~190ms cadence on budget hardware. Persona contract: direct answers, no questions back, no lecturing.</p></div>
+      <div class="cap"><div class="code">CAP_002</div><h4>Daily grounded review</h4><p>Once per calendar day, reads your real task data (completed / pending / overdue) and leaves three numbered reflection prompts in your history.</p></div>
+      <div class="cap"><div class="code">CAP_003</div><h4>Session history</h4><p>Every exchange persists as chat-shaped rows. Browse by day, reopen, delete with undo. What is on screen is literally what is in the database.</p></div>
+      <div class="cap"><div class="code">CAP_004</div><h4>Verified acquisition</h4><p>One-time 731 MB fetch: resumable, Wi-Fi-gated by default, SHA256-checked against a hash committed in this repository before load.</p></div>
+      <div class="cap"><div class="code">CAP_005</div><h4>RAM discipline</h4><p>Model unloads after 60 s backgrounded. Reloads transparently on next use. A journal must not hold a gigabyte while you answer texts.</p></div>
+      <div class="cap"><div class="code">CAP_006</div><h4>Inheritance</h4><p>Biometric lock, trash with undo, JSON backup, CSV export, widgets, reminders — all inherited from the task-manager foundation and applied to your journals.</p></div>
     </div>
   </div>
 </section>
 
-<!-- ================= LIVE DEMO ================= -->
-<section id="demo" style="padding-top:20px">
+<!-- ================= 02 PIPELINE ================= -->
+<section id="pipeline">
   <div class="wrap">
-    <div class="sec-head">
-      <h2 class="reveal">Talk to her right here.</h2>
-      <p class="lead reveal">A browser simulation of the Mind tab — same persona, same contract. On your phone she runs on real silicon; here she runs on canned honesty.</p>
+    <div class="shead reveal">
+      <div class="snum">02</div>
+      <div><h2>Pipeline.</h2>
+      <p class="lead">One send, end to end, entirely on silicon you own.</p></div>
     </div>
-    <div class="demo-shell">
-      <div class="try reveal">
-        <span class="tag">live simulation</span>
+    <div class="pipe reveal">
+      <div class="stage"><div class="ph">STAGE A</div><h5>Your words</h5><p>Typed text lands in a local Room row before anything else happens.</p><div class="arrow">→</div></div>
+      <div class="stage"><div class="ph">STAGE B</div><h5>Prompt build</h5><p>Persona contract assembled; optional task-context block capped to protect the 2048-token window.</p><div class="arrow">→</div></div>
+      <div class="stage"><div class="ph">STAGE C</div><h5>Wire encode</h5><p>Kotlin serializes the turn into BoltFFI buffers inside app memory.</p><div class="arrow">→</div></div>
+      <div class="stage"><div class="ph">STAGE D</div><h5>JNI bridge</h5><p>85 generated trampolines forward into the native BoltFFI ABI.</p><div class="arrow">→</div></div>
+      <div class="stage"><div class="ph">STAGE E</div><h5>llama.cpp</h5><p>LFM2.5 Q4_K_M generates against a 2048 context on your CPU cores.</p><div class="arrow">→</div></div>
+      <div class="stage"><div class="ph">STAGE F</div><h5>Stream home</h5><p>Tokens flow back through the same bridge; every batch updates the persisted row. Screen equals database.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 03 SIMULATION ================= -->
+<section id="demo">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">03</div>
+      <div><h2>Run the simulation.</h2>
+      <p class="lead">A faithful browser mock of the Mind tab. On your phone she thinks on real silicon — <strong>here she runs on canned honesty.</strong></p></div>
+    </div>
+    <div class="demo-grid">
+      <div class="try-pane reveal">
+        <span class="simtag">SIMULATION — NO NETWORK CALL</span>
         <div id="chatlog">
-          <div class="bubble u">I keep putting off starting my side project even though I think about it every day.</div>
-          <div class="bubble m">What specifically is making you hesitant about starting your side project?</div>
+          <div class="msg u">I keep putting off starting my side project even though I think about it every day.</div>
+          <div class="msg m">What specifically is making you hesitant about starting your side project?</div>
         </div>
+        <div class="statusline" id="statusline">STATUS: <b>IDLE — AWAITING INPUT</b></div>
         <form id="chatform" autocomplete="off">
-          <input id="chatin" type="text" placeholder="pour something out…" maxlength="200" aria-label="Type a thought">
-          <button class="send" type="submit" aria-label="Send">➤</button>
+          <input id="chatin" type="text" placeholder="TYPE A THOUGHT_" maxlength="200" aria-label="Type a thought">
+          <button class="send" type="submit">SEND ↵</button>
         </form>
       </div>
-      <div class="phone-zone reveal">
-        <div class="chip c1">✓ sha256 verified weights</div>
+      <div class="phone-pane reveal">
         <div class="phone">
           <div class="screen">
-            <div class="mini-title">M I N D</div>
+            <div class="mini-title">M I N D — SESSION 042</div>
             <div class="sb u">today felt heavy, couldn't focus on anything</div>
-            <div class="sb m"><b>MUSE</b>Heavy how — more like scattered, or drained?</div>
+            <div class="sb m"><b>MUSE //</b>Heavy how — more like scattered, or drained?</div>
             <div class="sb u">scattered. too many open loops</div>
-            <div class="sb m"><b>MUSE</b>Which loop has been open the longest?</div>
-            <div class="input-bar"><s>pour it out…</s><i></i></div>
+            <div class="sb m"><b>MUSE //</b>Which loop has been open the longest?</div>
+            <div class="input-bar"><s>TYPE A THOUGHT_</s><i></i></div>
           </div>
         </div>
-        <div class="chip c2">⚡ ~190ms stream cadence</div>
-        <div class="chip c3">🔒 zero bytes leave device</div>
+        <div class="ph-cap">FIG. 02 — MIND TAB, PRODUCTION UI</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= TERMINAL RECEIPT ================= -->
-<section style="padding-top:20px">
+<!-- ================= 04 MODEL ================= -->
+<section id="model">
   <div class="wrap">
-    <div class="sec-head">
-      <h2 class="reveal">Her first words ever.</h2>
-      <p class="lead reveal">Phase-0 validation run, unedited — before the UI existed.</p>
+    <div class="shead reveal">
+      <div class="snum">04</div>
+      <div><h2>The model.</h2>
+      <p class="lead">Chosen for a 1–2 GB RAM envelope and verified end-to-end before any UI was built. Full decision record: <strong>docs/adr/002</strong>.</p></div>
     </div>
-    <div class="term reveal">
-      <div class="tbar"><i></i><i></i><i></i><span>muse — first light · lfm2.5-1.2b-instruct q4_k_m</span></div>
-<pre><span class="p">$</span> xybrid run -d models/lfm2.5-1.2b-instruct \
-    --input-text <span class="u">"I keep putting off starting my side project even though I think about it every day."</span>
+    <table class="tbl reveal">
+      <tr><th>PARAMETER</th><th>VALUE</th></tr>
+      <tr><td>MODEL_ID</td><td>lfm2.5-1.2b-instruct v1.0 — Liquid AI LFM2.5 hybrid conv+attention</td></tr>
+      <tr><td>QUANTIZATION</td><td>Q4_K_M GGUF — <em>730,895,168 bytes</em> (35 MB over Q4_0, bought for quality)</td></tr>
+      <tr><td>INTEGRITY</td><td>SHA256 <span style="word-break:break-all">b1b3de114215d9507…4b19b4f5</span> — pinned in-repo, checked before every load</td></tr>
+      <tr><td>CONTEXT WINDOW</td><td>2048 tokens — user writing stays dominant; task context is budget-capped</td></tr>
+      <tr><td>BACKEND</td><td>llama.cpp on-device CPU, via Xybrid runtime + our JNI bridge</td></tr>
+      <tr><td>DELIVERY</td><td>Resumable HTTPS download to app-private storage; weights never redistributed by us</td></tr>
+      <tr><td>FALLBACKS</td><td>LFM2-1.2B → registry qwen3.5-0.8b (untriggered; decision record open)</td></tr>
+    </table>
+  </div>
+</section>
 
-<span class="ok">✔ Model            lfm2.5-1.2b-instruct v1.0</span>
-<span class="ok">✔ Inference completed successfully</span>
+<!-- ================= 05 STATS ================= -->
+<section id="stats">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">05</div>
+      <div><h2>Measured. Published.<br>Re-runnable.</h2>
+      <p class="lead">From real hardware during development — desktop cold start and a live session on a <strong>budget MediaTek phone</strong>. Method committed in the journey log.</p></div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat reveal"><b><span class="count" data-to="13">0</span><i>/</i>s</b><span>TOKENS — DESKTOP CPU, COLD START</span></div>
+    <div class="stat reveal"><b><span class="count" data-to="189">0</span><i>ms</i></b><span>STREAM CADENCE — BUDGET PHONE, LIVE</span></div>
+    <div class="stat reveal"><b><span class="count" data-to="731">0</span><i>MB</i></b><span>ONE-TIME DOWNLOAD, THEN NEVER AGAIN</span></div>
+    <div class="stat reveal"><b><span class="count" data-to="0">0</span><i>B</i></b><span>NETWORK CALLS AFTER INSTALL</span></div>
+  </div>
+</section>
 
-<span class="p">muse ›</span> What specifically is making you hesitant about starting your
-       side project? Exploring that could help clarify the next steps.
+<!-- ================= 06 PRIVACY ================= -->
+<section id="privacy">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">06</div>
+      <div><h2>Privacy compliance sheet.</h2>
+      <p class="lead">Not a policy. Architecture.</p></div>
+    </div>
+    <table class="tbl reveal">
+      <tr><th>CHECK</th><th>FINDING</th></tr>
+      <tr><td>NET_001 DATA EGRESS</td><td><em>PASS</em> — one model download over Wi-Fi, started by you, hash-verified before load. Zero network calls afterwards. This page makes more requests than the app makes in its lifetime.</td></tr>
+      <tr><td>NET_002 ANALYTICS</td><td><em>NONE PRESENT</em> — no analytics, no trackers, no accounts. The only scripts here render the rotating figure and run the simulation locally.</td></tr>
+      <tr><td>STO_001 THOUGHT STORAGE</td><td><em>PASS</em> — local Room database in Android encrypted app storage; included in the app's own backup/export machinery.</td></tr>
+      <tr><td>EXE_001 INFERENCE TARGET</td><td><em>PASS</em> — on-device CPU via llama.cpp. Manual unload available in Settings → Mind model.</td></tr>
+      <tr><td>ACC_001 ACCESS CONTROL</td><td><em>PASS</em> — biometric/PIN gate covers all screens including Mind. Journals inherit the lock.</td></tr>
+      <tr><td>ACC_002 DELETE PATH</td><td><em>PASS</em> — sessions delete with undo; model deletes with engine-release-first ordering; both verified on hardware.</td></tr>
+    </table>
+  </div>
+</section>
 
-<span class="p">$</span> sha256sum LFM2.5-1.2B-Instruct-Q4_K_M.gguf
-<span class="ok">b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5 ✓ verified</span><span class="caret"></span></pre>
+<!-- ================= 07 REQUIREMENTS ================= -->
+<section id="requirements">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">07</div>
+      <div><h2>Requirements.</h2>
+      <p class="lead">If your phone meets this table, Muse runs. Tested floor: a 4 GB MediaTek device.</p></div>
+    </div>
+    <table class="tbl reveal">
+      <tr><th>ITEM</th><th>MINIMUM</th><th>NOTES</th></tr>
+      <tr><td>OS_VERSION</td><td>Android 8.0 (API 26)</td><td>arm64-v8a or armeabi-v7a</td></tr>
+      <tr><td>RAM_FREE</td><td>~1.4 GB during inference</td><td>Model unloads 60 s after backgrounding</td></tr>
+      <tr><td>DISK_FREE</td><td>1.1 GB</td><td>Guard blocks download below threshold</td></tr>
+      <tr><td>NETWORK</td><td>Wi-Fi once</td><td>Metered override exists; resume supported</td></tr>
+      <tr><td>GOOGLE_PLAY</td><td>Not required</td><td>Sideloaded APK; no services dependency</td></tr>
+      <tr><td>PRICE</td><td>$0</td><td>No tiers exist to upsell you out of</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= 08 FAQ ================= -->
+<section id="faq">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">08</div>
+      <div><h2>Interrogation.</h2>
+      <p class="lead">Questions we expect. Expand at will — these are native disclosure elements, not a widget library.</p></div>
+    </div>
+    <div class="reveal">
+      <details><summary>Is my journal really never uploaded?</summary><div class="a">There is no upload path. Inference is in-process via llama.cpp; storage is a local Room database. The only network call the AI feature can make is the one-time model download you explicitly start, and its bytes are checksum-verified against a hash committed in the repository before they are ever loaded. <strong>Airplane mode is a supported configuration, not an error state.</strong></div></details>
+      <details><summary>How smart is a 1.2B model, honestly?</summary><div class="a">It is a sharp, fast reflector — not GPT. Expect short, grounded replies tuned by a persona contract: mirror, respond concretely, stay under ~120 words. For deep reasoning you still want a large cloud model; Muse is for thinking alongside something private that lives in your pocket.</div></details>
+      <details><summary>Why did you build a custom JNI bridge?</summary><div class="a">The published Kotlin SDK shipped its native library without JNI exports, so it could not load on any Android device (documented in upstream issue #530 and <code>native-bridge/README.md</code>). We generate the missing 85 trampolines from upstream's own C header. Once upstream fixes packaging, the bridge retires.</div></details>
+      <details><summary>What does it cost?</summary><div class="a">Nothing. No tiers, no subscription, no account. The runtime is Apache-2.0, the app is MIT, the weights carry Liquid AI's LFM Open License. You pay bandwidth for one download.</div></details>
+      <details><summary>Can I see how it was built?</summary><div class="a">Yes — that is the point. 28 reviewed pull requests, 39 tracked issues, architecture decision records, benchmark methods, and a journey log covering every crash are all public. Start at <strong>docs/journey/</strong>.</div></details>
+      <details><summary>What happened to the todo-app part?</summary><div class="a">It is still here — Muse grew out of YATA, a full offline task manager. Your tasks power the daily review; your journals sit beside them under the same lock. One app, two rooms: do, then think.</div></details>
     </div>
   </div>
 </section>
 
-<!-- ================= PRIVACY BENTO ================= -->
-<section id="privacy" style="padding-top:20px">
+<!-- ================= 09 ROADMAP ================= -->
+<section id="roadmap">
   <div class="wrap">
-    <div class="sec-head">
-      <h2 class="reveal">Privacy is structural.</h2>
-      <p class="lead reveal">Not a policy page. Architecture.</p>
+    <div class="shead reveal">
+      <div class="snum">09</div>
+      <div><h2>Roadmap.</h2>
+      <p class="lead">Tracked as issues. Statuses change only through merged PRs.</p></div>
     </div>
-    <div class="bento">
-      <div class="tile big reveal">
-        <div class="q">what leaves the device</div>
-        <p><em>One model download</em>, once, started by you over Wi-Fi. SHA256-pinned against a hash committed in the repo, verified before load. After that: <strong>zero network calls, forever</strong>. This page makes more requests than the app does in its whole life.</p>
-      </div>
-      <div class="tile reveal">
-        <div class="q">your thoughts</div>
-        <p>Local database, Android encrypted app storage. Ride the app's backup/export.</p>
-      </div>
-      <div class="tile reveal">
-        <div class="q">inference location</div>
-        <p>On-device CPU via llama.cpp. Unloadable from Settings in one tap.</p>
-      </div>
-      <div class="tile reveal">
-        <div class="q">who can read it</div>
-        <p>Whoever passes the biometric or PIN lock. Same gate as everything else.</p>
-      </div>
-      <div class="tile reveal">
-        <div class="q">analytics</div>
-        <p><strong>None.</strong> Not on this page either — the only scripts here render the stars.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ================= STATS ================= -->
-<section style="padding-top:20px">
-  <div class="wrap">
-    <div class="sec-head">
-      <h2 class="reveal">Numbers, not vibes.</h2>
-      <p class="lead reveal">Measured during development, published in the journey log, re-runnable from the repo.</p>
-    </div>
-    <div class="stats">
-      <div class="stat reveal"><b><span class="count" data-to="13">0</span> tok/s</b><span>desktop cpu · cold start</span></div>
-      <div class="stat reveal"><b><span class="count" data-to="189">0</span> ms</b><span>stream cadence · budget phone</span></div>
-      <div class="stat reveal"><b><span class="count" data-to="731">0</span> MB</b><span>one-time download</span></div>
-      <div class="stat reveal"><b><span class="count" data-to="0">0</span> bytes</b><span>leaving your device after</span></div>
+    <div class="rm reveal">
+      <div class="rm-row" data-s="shipped"><span class="st-tag">SHIPPED</span><div><h5>On-device streaming reflection</h5><p>LFM2.5 via Xybrid + JNI bridge, verified on hardware</p></div><span class="mono mut" style="font-size:10px">v0.1.x</span></div>
+      <div class="rm-row" data-s="shipped"><span class="st-tag">SHIPPED</span><div><h5>Daily task-grounded review</h5><p>Reflection prompts grounded in real Room task data</p></div><span class="mono mut" style="font-size:10px">v0.1.x</span></div>
+      <div class="rm-row" data-s="building"><span class="st-tag">IN BUILD</span><div><h5>Benchmarks surfaced in-app</h5><p>Live tok/s from result metrics, published per device class</p></div><span class="mono mut" style="font-size:10px">next</span></div>
+      <div class="rm-row"><span class="st-tag">PLANNED</span><div><h5>Voice loop</h5><p>On-device ASR in, TTS out — the pipeline already supports it</p></div><span class="mono mut" style="font-size:10px">v0.2</span></div>
+      <div class="rm-row"><span class="st-tag">PLANNED</span><div><h5>Upstream JNI fix contribution</h5><p>Our generator proposed as the fix for xybrid#530; bridge retires when merged</p></div><span class="mono mut" style="font-size:10px">upstream</span></div>
     </div>
   </div>
 </section>
 
 <!-- ================= CTA ================= -->
-<div class="wrap">
-  <div class="cta reveal">
-    <h2>Built in the open.<br>Shipped with receipts.</h2>
-    <p>Every feature lands as a reviewed pull request against a tracked issue. Research first, code second, metrics public. Come read the whole story.</p>
-    <a class="btn magnetic" href="https://github.com/10xdev4u-alt/muse/releases">Download for Android</a>
-    <a class="btn ghost magnetic" href="https://github.com/10xdev4u-alt/muse" style="margin-left:12px">Read the source</a>
-  </div>
-</div>
-
-<footer>
+<section class="cta-sec">
   <div class="wrap">
-    <div>muse — a journal that talks back. offline.</div>
-    <div>foundation <a href="https://github.com/rjwarrier/yata">yata</a> · engine <a href="https://github.com/xybrid-ai/xybrid">xybrid</a> · model <a href="https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF">lfm2.5</a> · <a href="https://github.com/10xdev4u-alt/muse/blob/main/LICENSE">MIT</a></div>
+    <div class="cta-inner">
+      <div class="cta-copy reveal">
+        <div class="idx" style="color:#b9b4a8">DOC END — DEPLOYMENT ORDER <b>M-FINAL</b></div>
+        <h2 style="font-size:clamp(30px,4vw,50px);text-transform:uppercase;line-height:.95">Deploy Muse<br>to your pocket.</h2>
+        <p>Sideload the APK, open Mind once on Wi-Fi, and the smallest serious language model you can carry starts earning its 731 megabytes.</p>
+        <a class="btn inv" href="https://github.com/10xdev4u-alt/muse/releases" style="margin-top:30px;display:inline-block">DOWNLOAD v0.1.1 ↓</a>
+      </div>
+      <ul class="cta-list reveal">
+        <li><i>→</i>SOURCE — GITHUB.COM/10XDEV4U-ALT/MUSE</li>
+        <li><i>→</i>SPEC DOCS — THIS PAGE, IN REPO FORM</li>
+        <li><i>→</i>JOURNEY LOG — DOCS/JOURNEY/</li>
+        <li><i>→</i>UPSTREAM BUG WE FORGED AROUND — XYBRID#530</li>
+        <li><i>→</i>LICENSES — MIT · APACHE-2 · LFM OPEN</li>
+      </ul>
+    </div>
+    <footer><div class="wrap">
+      <div>MUSE — A JOURNAL THAT TALKS BACK. OFFLINE. · DOC M-SPC-001 · REV 0.1.1</div>
+      <div>ENGINE XYBRID · MODEL LIQUID AI LFM2.5 · FOUNDATION YATA · © 2026</div>
+    </div></footer>
   </div>
-</footer>
+</section>
 
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-<script type="module">
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+<script>
+(function(){
+  'use strict';
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tk=document.getElementById('tk'); if(tk) tk.innerHTML+=tk.innerHTML;
 
-/* ---------- NEBULA ---------- */
-(function nebula(){
-  const canvas = document.getElementById('nebula');
-  let renderer;
-  try { renderer = new THREE.WebGLRenderer({canvas, antialias:false, alpha:true}); }
-  catch(e){ document.getElementById('fbglow').style.display='block'; canvas.remove(); return; }
-  const DPR = Math.min(devicePixelRatio, 1.75);
-  renderer.setPixelRatio(DPR);
-  renderer.setSize(innerWidth, innerHeight);
+  const io=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+  }),{threshold:.15});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, .1, 100);
-  camera.position.z = 26;
+  const cio=new IntersectionObserver(es=>es.forEach(e=>{
+    if(!e.isIntersecting)return; cio.unobserve(e.target);
+    const el=e.target,to=+el.dataset.to,t0=performance.now();
+    (function step(now){const p=Math.min((now-t0)/1200,1);
+      el.textContent=Math.round(to*(1-Math.pow(1-p,3)));
+      if(p<1)requestAnimationFrame(step);})(t0);
+  }),{threshold:.5});
+  document.querySelectorAll('.count').forEach(c=>cio.observe(c));
 
-  const COUNT = innerWidth < 720 ? 2200 : 4200;
-  const pos = new Float32Array(COUNT*3), col = new Float32Array(COUNT*3), seed = new Float32Array(COUNT);
-  const palette = [new THREE.Color('#2dd4bf'), new THREE.Color('#7c6cf0'), new THREE.Color('#f5b04b'), new THREE.Color('#eae8e1')];
-  for(let i=0;i<COUNT;i++){
-    // galaxy-ish spiral distribution
-    const arm = i % 3, r = Math.pow(Math.random(), .6)*16 + 1.5,
-          ang = arm*(Math.PI*2/3) + r*.42 + (Math.random()-.5)*.9,
-          y = (Math.random()-.5)*(7 - r*.28);
-    pos[i*3]   = Math.cos(ang)*r + (Math.random()-.5)*2.2;
-    pos[i*3+1] = y;
-    pos[i*3+2] = Math.sin(ang)*r + (Math.random()-.5)*2.2;
-    const c = palette[Math.random()<.55?0 : Math.random()<.5?1 : Math.random()<.6?2:3];
-    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
-    seed[i] = Math.random()*Math.PI*2;
+  /* FIG.01 wireframe — vanilla canvas */
+  const cv=document.getElementById('wire');
+  if(cv){
+    const ctx=cv.getContext('2d');
+    let W,H;const dpr=Math.min(devicePixelRatio||1,2);
+    function fit(){const r=cv.getBoundingClientRect();W=r.width;H=r.height;
+      cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+    fit();addEventListener('resize',fit);
+
+    const t=(1+Math.sqrt(5))/2,V=[];
+    [[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],[0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],
+     [t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]].forEach(v=>V.push(v.map(x=>x*10)));
+    const E=[[0,1],[0,4],[0,9],[1,8],[1,5],[2,3],[2,4],[2,10],[3,8],[3,5],[4,5],
+             [4,7],[5,11],[6,7],[6,8],[6,10],[7,9],[8,9],[9,11],[10,11]];
+    const P=[];for(let i=0;i<90;i++){const r=4+Math.random()*7,
+      th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+      P.push([r*Math.sin(ph)*Math.cos(th),r*Math.sin(ph)*Math.sin(th)*.6,r*Math.cos(ph)]);}
+
+    let ry=.4,rx=-.35,vy=.004,vx=.0012,drag=null,lx=0,ly=0,boost=0;
+    function rot(p){let[x,y,z]=p;let c=Math.cos(ry),s=Math.sin(ry);[x,z]=[x*c+z*s,z*c-x*s];
+      c=Math.cos(rx);s=Math.sin(rx);[y,z]=[y*c-z*s,z*c+y*s];return[x,y,z];}
+    function draw(){
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle='rgba(20,19,16,.35)';ctx.lineWidth=1;
+      [[14,14],[W-14,14],[W-14,H-14],[14,H-14]].forEach(([x,y])=>{
+        ctx.beginPath();ctx.moveTo(x-5,y);ctx.lineTo(x+5,y);ctx.moveTo(x,y-5);ctx.lineTo(x,y+5);ctx.stroke();});
+      const cx=W/2,cy=H/2,sc=Math.min(W,H)/34;
+      ctx.fillStyle='#FF4D00';
+      for(const p of P){const r=rot(p),x=cx+r[0]*sc,y=cy+r[1]*sc,s=1+Math.random()*1.6;
+        ctx.globalAlpha=.5+Math.random()*.5;ctx.fillRect(x,y,s,s);}
+      ctx.globalAlpha=1;ctx.strokeStyle='#141310';ctx.lineWidth=1.4;
+      for(const[a,b]of E){const r1=rot(V[a]),r2=rot(V[b]);
+        ctx.beginPath();ctx.moveTo(cx+r1[0]*sc,cy+r1[1]*sc);ctx.lineTo(cx+r2[0]*sc,cy+r2[1]*sc);ctx.stroke();}
+      ctx.fillStyle='#141310';
+      for(const v of V){const r=rot(v);ctx.fillRect(cx+r[0]*sc-2,cy+r[1]*sc-2,4,4);}
+    }
+    function tick(){
+      if(drag){ry+=(lx-drag.x)*.006;rx+=(ly-drag.y)*.006;}
+      else{ry+=vy*(1+boost*6);rx+=vx*(1+boost*6);}
+      boost*=.96;draw();requestAnimationFrame(tick);
+    }
+    if(reduced){draw();}else requestAnimationFrame(tick);
+    cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};lx=e.clientX;ly=e.clientY;cv.setPointerCapture(e.pointerId);});
+    cv.addEventListener('pointermove',e=>{if(drag){lx=e.clientX;ly=e.clientY;}});
+    cv.addEventListener('pointerup',()=>drag=null);
+    cv.addEventListener('click',()=>boost=1);
+    window.__sysTick=function(){boost=1;
+      const st=document.getElementById('statusline');
+      if(st){st.innerHTML='STATUS: <b>PROCESSING INPUT…</b>';
+        setTimeout(()=>st.innerHTML='STATUS: <b>REFLECTION COMPLETE ✓</b>',1400);}};
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
-  geo.setAttribute('color', new THREE.BufferAttribute(col,3));
-  const mat = new THREE.PointsMaterial({size:.085, vertexColors:true, transparent:true,
-    opacity:.85, blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true});
-  const points = new THREE.Points(geo, mat);
-  scene.add(points);
 
-  // soft core glow sprite
-  const glowGeo = new THREE.PlaneGeometry(30,30);
-  const glowMat = new THREE.MeshBasicMaterial({transparent:true, opacity:.16,
-    map:(()=>{const c=document.createElement('canvas');c.width=c.height=256;
-      const g=c.getContext('2d'),gr=g.createRadialGradient(128,128,0,128,128,128);
-      gr.addColorStop(0,'rgba(45,212,191,.9)');gr.addColorStop(.4,'rgba(124,108,240,.35)');gr.addColorStop(1,'transparent');
-      g.fillStyle=gr;g.fillRect(0,0,256,256);return new THREE.CanvasTexture(c);})(),
-    blending:THREE.AdditiveBlending, depthWrite:false});
-  const glow = new THREE.Mesh(glowGeo, glowMat);
-  glow.rotation.x = -Math.PI/2.35; glow.position.y = -2.2;
-  scene.add(glow);
-
-  let mx=0,my=0,tx=0,ty=0;
-  addEventListener('pointermove', e=>{ tx=(e.clientX/innerWidth-.5)*2; ty=(e.clientY/innerHeight-.5)*2; },{passive:true});
-  addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
-  document.addEventListener('visibilitychange', ()=>{ paused = document.hidden; });
-  let paused=false;
-
-  let energy = 0;
-  window.__pulse = (v)=>{ energy = Math.min(1.6, energy + v); };
-
-  const clock = new THREE.Clock();
-  function tick(){
-    requestAnimationFrame(tick);
-    if(paused) return;
-    const t = clock.getElapsedTime();
-    energy *= .965;
-    mx += (tx-mx)*.03; my += (ty-my)*.03;
-    mat.size = .085 * (1 + energy*1.5);
-    mat.opacity = Math.min(.95, .85 + energy*.25);
-    points.rotation.y = t*.045*(1+energy*.9) + mx*.35;
-    points.rotation.x = Math.sin(t*.1)*.06 + my*.18;
-    camera.position.x = mx*2.4; camera.position.y = -my*1.4;
-    camera.lookAt(0,0,0);
-    renderer.render(scene,camera);
-  }
-  if(reduced){ renderer.render(scene,camera); } else tick();
-
-  // kill the old flat fallback
-  document.getElementById('fbglow').remove?.();
+  /* simulation */
+  const log=document.getElementById('chatlog'),form=document.getElementById('chatform'),
+        input=document.getElementById('chatin');
+  const BANK=[
+    'What does that feel like — pressure, restlessness, or something else?',
+    'When did you first notice this showing up?',
+    'What would change if this were slightly easier tomorrow?',
+    'Who else knows about this? Does their version match yours?',
+    'If nothing changes for a month, what breaks first?',
+    'What have you already tried that we should rule out?',
+    'Is this a new weight, or one you have carried quietly for a while?'
+  ];
+  let busy=false;
+  form&&form.addEventListener('submit',e=>{
+    e.preventDefault();
+    const text=input.value.trim();if(!text||busy)return;
+    input.value='';busy=true;
+    window.__sysTick&&window.__sysTick();
+    const u=document.createElement('div');u.className='msg u';u.textContent=text;
+    log.appendChild(u);log.scrollTop=log.scrollHeight;
+    setTimeout(()=>{
+      const m=document.createElement('div');m.className='msg m';
+      m.textContent=BANK[Math.floor(Math.random()*BANK.length)];
+      log.appendChild(m);log.scrollTop=log.scrollHeight;busy=false;
+    },1100+Math.random()*700);
+  });
 })();
-
-/* ---------- GSAP CHOREOGRAPHY ---------- */
-if(window.gsap && !reduced){
-  gsap.registerPlugin(ScrollTrigger);
-  gsap.utils.toArray('.reveal').forEach(el=>{
-    gsap.to(el,{opacity:1,y:0,duration:1,ease:'power3.out',
-      scrollTrigger:{trigger:el,start:'top 86%',once:true}});
-  });
-  // nebula recedes after hero, breathes back at the CTA — content first (#visibility)
-  gsap.to('#nebula',{opacity:.14,ease:'none',
-    scrollTrigger:{trigger:'#how',start:'top 92%',end:'top 35%',scrub:.6}});
-  gsap.to('#nebula',{opacity:.42,ease:'none',
-    scrollTrigger:{trigger:'.cta',start:'top 90%',end:'center 55%',scrub:.6}});
-} else {
-  document.querySelectorAll('.reveal').forEach(el=>{el.style.opacity=1;el.style.transform='none';});
-}
-
-/* ---------- COUNTERS ---------- */
-const cio = new IntersectionObserver(es=>{
-  es.forEach(e=>{
-    if(!e.isIntersecting) return;
-    cio.unobserve(e.target);
-    const el=e.target, to=+el.dataset.to, dur=1400, t0=performance.now();
-    (function step(now){
-      const p=Math.min((now-t0)/dur,1), eased=1-Math.pow(1-p,3);
-      el.textContent=Math.round(to*eased).toLocaleString();
-      if(p<1) requestAnimationFrame(step);
-    })(t0);
-  });
-},{threshold:.6});
-document.querySelectorAll('.count').forEach(c=>cio.observe(c));
-
-/* ---------- MARQUEE duplicate for seamless loop ---------- */
-const mq=document.getElementById('mq');
-mq.innerHTML += mq.innerHTML;
-
-/* ---------- CARD SPOTLIGHT ---------- */
-document.querySelectorAll('.card').forEach(card=>{
-  card.addEventListener('pointermove',e=>{
-    const r=card.getBoundingClientRect();
-    card.style.setProperty('--mx',(e.clientX-r.left)+'px');
-  });
-});
-
-/* ---------- MAGNETIC BUTTONS ---------- */
-document.querySelectorAll('.magnetic').forEach(b=>{
-  b.addEventListener('pointermove',e=>{
-    const r=b.getBoundingClientRect();
-    gsap.to(b,{x:(e.clientX-r.left-r.width/2)*.18,y:(e.clientY-r.top-r.height/2)*.28,duration:.4});
-  });
-  b.addEventListener('pointerleave',()=>gsap.to(b,{x:0,y:0,duration:.5,ease:'elastic.out(1,.5)'}));
-});
-
-/* ---------- CURSOR ORB ---------- */
-if(matchMedia('(pointer:fine)').matches && !reduced){
-  const dot=document.getElementById('cdot'), ring=document.getElementById('cring');
-  let x=innerWidth/2,y=innerHeight/2,rx=x,ry=y;
-  addEventListener('pointermove',e=>{x=e.clientX;y=e.clientY;
-    dot.style.transform=`translate(${x}px,${y}px) translate(-50%,-50%)`;},{passive:true});
-  (function follow(){ rx+=(x-rx)*.16; ry+=(y-ry)*.16;
-    ring.style.transform=`translate(${rx}px,${ry}px) translate(-50%,-50%)`;
-    requestAnimationFrame(follow); })();
-  document.querySelectorAll('a,button,input,.card,.tile').forEach(el=>{
-    el.addEventListener('pointerenter',()=>ring.classList.add('hot'));
-    el.addEventListener('pointerleave',()=>ring.classList.remove('hot'));
-  });
-} else { document.getElementById('cdot')?.remove(); document.getElementById('cring')?.remove(); }
-
-/* ---------- INTERACTIVE SIMULATED DEMO ---------- */
-const log=document.getElementById('chatlog'), form=document.getElementById('chatform'),
-      input=document.getElementById('chatin');
-const BANK=[
-  'What does that feel like in your body — pressure, restlessness, or something else?',
-  'When did you first notice this showing up?',
-  'What would change if this were slightly easier tomorrow?',
-  'Who else knows about this? Does their version match yours?',
-  'If nothing changes for a month, what breaks first?',
-  'What have you already tried that we should rule out?',
-  'Is this a new weight, or one you have carried quietly for a while?',
-];
-function addBubble(cls, text){
-  const d=document.createElement('div'); d.className='bubble '+cls; d.textContent=text;
-  log.appendChild(d); log.scrollTop=log.scrollHeight; return d;
-}
-let busy=false;
-form.addEventListener('submit', e=>{
-  e.preventDefault();
-  const text=input.value.trim(); if(!text||busy) return;
-  input.value=''; busy=true;
-  addBubble('u',text);
-  window.__pulse?.(.85);  const t=document.createElement('div'); t.className='bubble m';
-  t.innerHTML='<span class="typing"><i></i><i></i><i></i></span>';
-  setTimeout(()=>log.appendChild(t)&& (log.scrollTop=log.scrollHeight), 260);
-  setTimeout(()=>{
-    t.textContent=BANK[Math.floor(Math.random()*BANK.length)];
-    log.scrollTop=log.scrollHeight; busy=false;
-    window.__pulse?.(.45);
-  }, 1100+Math.random()*800);
-});
 </script>
 </body>
 </html>

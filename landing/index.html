@@ -24,6 +24,17 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1
 
 /* ============ NEBULA CANVAS ============ */
 #nebula{position:fixed;inset:0;z-index:-5}
+.vignette{position:fixed;inset:0;z-index:-4;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 40%, transparent 40%, rgba(4,5,10,.55) 78%, rgba(4,5,10,.9) 100%)}
+.cursor-dot{position:fixed;top:0;left:0;width:7px;height:7px;border-radius:50%;
+  background:var(--teal);z-index:99;pointer-events:none;mix-blend-mode:screen;
+  transform:translate(-50%,-50%)}
+.cursor-ring{position:fixed;top:0;left:0;width:34px;height:34px;border-radius:50%;
+  border:1px solid rgba(45,212,191,.45);z-index:99;pointer-events:none;mix-blend-mode:screen;
+  transform:translate(-50%,-50%);transition:width .3s,height .3s,border-color .3s}
+.cursor-ring.hot{width:56px;height:56px;border-color:rgba(245,176,75,.6)}
+@media (pointer:fine){ body{cursor:none} a,button,input{cursor:none} }
+@media (pointer:coarse){ .cursor-dot,.cursor-ring{display:none} }
 .fallback-glow{position:fixed;inset:0;z-index:-6;display:none;
   background:
    radial-gradient(60vw 60vw at 15% -10%, rgba(45,212,191,.14), transparent 60%),
@@ -233,7 +244,10 @@ footer a{color:var(--dim)}footer a:hover{color:var(--teal)}
 
 <canvas id="nebula"></canvas>
 <div class="fallback-glow" id="fbglow"></div>
+<div class="vignette" aria-hidden="true"></div>
 <div class="grain" aria-hidden="true"></div>
+<div class="cursor-dot" id="cdot" aria-hidden="true"></div>
+<div class="cursor-ring" id="cring" aria-hidden="true"></div>
 
 <nav class="top">
   <span class="logo">muse<b>_</b></span>
@@ -487,13 +501,19 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.addEventListener('visibilitychange', ()=>{ paused = document.hidden; });
   let paused=false;
 
+  let energy = 0;
+  window.__pulse = (v)=>{ energy = Math.min(1.6, energy + v); };
+
   const clock = new THREE.Clock();
   function tick(){
     requestAnimationFrame(tick);
     if(paused) return;
     const t = clock.getElapsedTime();
+    energy *= .965;
     mx += (tx-mx)*.03; my += (ty-my)*.03;
-    points.rotation.y = t*.045 + mx*.35;
+    mat.size = .085 * (1 + energy*1.5);
+    mat.opacity = Math.min(.95, .85 + energy*.25);
+    points.rotation.y = t*.045*(1+energy*.9) + mx*.35;
     points.rotation.x = Math.sin(t*.1)*.06 + my*.18;
     camera.position.x = mx*2.4; camera.position.y = -my*1.4;
     camera.lookAt(0,0,0);
@@ -512,6 +532,11 @@ if(window.gsap && !reduced){
     gsap.to(el,{opacity:1,y:0,duration:1,ease:'power3.out',
       scrollTrigger:{trigger:el,start:'top 86%',once:true}});
   });
+  // nebula recedes after hero, breathes back at the CTA — content first (#visibility)
+  gsap.to('#nebula',{opacity:.14,ease:'none',
+    scrollTrigger:{trigger:'#how',start:'top 92%',end:'top 35%',scrub:.6}});
+  gsap.to('#nebula',{opacity:.42,ease:'none',
+    scrollTrigger:{trigger:'.cta',start:'top 90%',end:'center 55%',scrub:.6}});
 } else {
   document.querySelectorAll('.reveal').forEach(el=>{el.style.opacity=1;el.style.transform='none';});
 }
@@ -552,6 +577,21 @@ document.querySelectorAll('.magnetic').forEach(b=>{
   b.addEventListener('pointerleave',()=>gsap.to(b,{x:0,y:0,duration:.5,ease:'elastic.out(1,.5)'}));
 });
 
+/* ---------- CURSOR ORB ---------- */
+if(matchMedia('(pointer:fine)').matches && !reduced){
+  const dot=document.getElementById('cdot'), ring=document.getElementById('cring');
+  let x=innerWidth/2,y=innerHeight/2,rx=x,ry=y;
+  addEventListener('pointermove',e=>{x=e.clientX;y=e.clientY;
+    dot.style.transform=`translate(${x}px,${y}px) translate(-50%,-50%)`;},{passive:true});
+  (function follow(){ rx+=(x-rx)*.16; ry+=(y-ry)*.16;
+    ring.style.transform=`translate(${rx}px,${ry}px) translate(-50%,-50%)`;
+    requestAnimationFrame(follow); })();
+  document.querySelectorAll('a,button,input,.card,.tile').forEach(el=>{
+    el.addEventListener('pointerenter',()=>ring.classList.add('hot'));
+    el.addEventListener('pointerleave',()=>ring.classList.remove('hot'));
+  });
+} else { document.getElementById('cdot')?.remove(); document.getElementById('cring')?.remove(); }
+
 /* ---------- INTERACTIVE SIMULATED DEMO ---------- */
 const log=document.getElementById('chatlog'), form=document.getElementById('chatform'),
       input=document.getElementById('chatin');
@@ -574,12 +614,13 @@ form.addEventListener('submit', e=>{
   const text=input.value.trim(); if(!text||busy) return;
   input.value=''; busy=true;
   addBubble('u',text);
-  const t=document.createElement('div'); t.className='bubble m';
+  window.__pulse?.(.85);  const t=document.createElement('div'); t.className='bubble m';
   t.innerHTML='<span class="typing"><i></i><i></i><i></i></span>';
   setTimeout(()=>log.appendChild(t)&& (log.scrollTop=log.scrollHeight), 260);
   setTimeout(()=>{
     t.textContent=BANK[Math.floor(Math.random()*BANK.length)];
     log.scrollTop=log.scrollHeight; busy=false;
+    window.__pulse?.(.45);
   }, 1100+Math.random()*800);
 });
 </script>

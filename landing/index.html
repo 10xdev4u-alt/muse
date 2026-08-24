@@ -6,199 +6,376 @@
 <title>Muse — a journal that talks back. Offline.</title>
 <meta name="description" content="An Android journaling companion with a real AI that runs entirely on your phone. No accounts. No cloud. No internet after one download.">
 <style>
-  :root {
-    --bg: #0b0e14;
-    --bg-soft: #11151f;
-    --ink: #e8e6df;
-    --ink-dim: #9aa3b2;
-    --accent: #c8b08a;
-    --accent-glow: rgba(200, 176, 138, 0.12);
-    --line: #232a38;
-    --mono: ui-monospace, "JetBrains Mono", Menlo, monospace;
-    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: var(--sans);
-    line-height: 1.65;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+/* ---------- fonts (self-hosted, zero third-party requests) ---------- */
+@font-face{
+  font-family:'Syne';font-style:normal;font-weight:400 800;font-display:swap;
+  src:url('fonts/syne-var.woff2') format('woff2');
+}
+@font-face{
+  font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;
+  src:url('fonts/jbm-var.woff2') format('woff2');
+}
 
-  header {
-    padding: 28px 0;
-    border-bottom: 1px solid var(--line);
-    position: sticky; top: 0; background: rgba(11,14,20,.92); backdrop-filter: blur(8px);
-    z-index: 10;
-  }
-  header .wrap { display: flex; justify-content: space-between; align-items: center; }
-  .brand { font-family: var(--mono); letter-spacing: .18em; text-transform: lowercase; font-size: 15px; }
-  .brand b { color: var(--accent); font-weight: 600; }
-  nav a { color: var(--ink-dim); text-decoration: none; font-size: 14px; margin-left: 22px; }
-  nav a:hover { color: var(--ink); }
+/* ---------- tokens ---------- */
+:root{
+  --bg:#05060a;
+  --bg-soft:rgba(255,255,255,.035);
+  --glass:rgba(255,255,255,.05);
+  --line:rgba(255,255,255,.09);
+  --ink:#eae8e1;
+  --dim:#98a0b0;
+  --teal:#2dd4bf;
+  --ember:#f5b04b;
+  --violet:#6d5ae6;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --disp:'Syne',system-ui,sans-serif;
+  --sans:system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--ink);
+  font-family:var(--sans);line-height:1.65;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+::selection{background:var(--teal);color:#04211c}
 
-  .hero { padding: 110px 0 90px; position: relative; overflow: hidden; }
-  .hero::before {
-    content: ""; position: absolute; inset: -40% 30% auto auto; width: 620px; height: 620px;
-    background: radial-gradient(circle, var(--accent-glow), transparent 62%);
-    pointer-events: none;
-  }
-  h1 {
-    font-size: clamp(38px, 7vw, 68px);
-    line-height: 1.06;
-    letter-spacing: -.02em;
-    font-weight: 650;
-    max-width: 15ch;
-  }
-  h1 em { font-style: normal; color: var(--accent); }
-  .hero p.sub {
-    margin-top: 26px; max-width: 52ch; font-size: 19px; color: var(--ink-dim);
-  }
-  .hero p.sub strong { color: var(--ink); font-weight: 550; }
+/* ---------- atmosphere: starfield + aurora + grain ---------- */
+.sky{position:fixed;inset:0;z-index:-3;pointer-events:none}
+.stars,.stars2,.stars3{
+  position:absolute;inset:-100% 0 0 0;height:300%;
+  background-image:
+    radial-gradient(1px 1px at 25px 45px,#fff8 50%,transparent 51%),
+    radial-gradient(1px 1px at 155px 120px,#fff5 50%,transparent 51%),
+    radial-gradient(1.5px 1.5px at 90px 200px,#ffffffcc 50%,transparent 51%),
+    radial-gradient(1px 1px at 210px 60px,#ffffff99 50%,transparent 51%);
+  background-size:260px 260px;
+}
+.stars{animation:drift 140s linear infinite;opacity:.55}
+.stars2{background-size:180px 180px;animation:drift 90s linear infinite reverse;opacity:.35}
+.stars3{background-size:340px 340px;animation:twinkle 7s ease-in-out infinite alternate;opacity:.5}
+@keyframes drift{to{transform:translateY(-33%)}}
+@keyframes twinkle{from{opacity:.28}to{opacity:.55}}
+.aurora{position:fixed;inset:0;z-index:-2;pointer-events:none;filter:blur(110px);mix-blend-mode:screen}
+.aurora i{position:absolute;border-radius:50%;opacity:.16}
+.aurora .a1{width:52vw;height:52vw;left:-14vw;top:-18vw;background:radial-gradient(circle,var(--teal),transparent 65%);animation:bloom1 26s ease-in-out infinite alternate}
+.aurora .a2{width:44vw;height:44vw;right:-12vw;top:22vh;background:radial-gradient(circle,var(--violet),transparent 65%);animation:bloom2 32s ease-in-out infinite alternate}
+.aurora .a3{width:38vw;height:38vw;left:30vw;top:78vh;background:radial-gradient(circle,var(--ember),transparent 65%);opacity:.10;animation:bloom1 38s ease-in-out infinite alternate-reverse}
+@keyframes bloom1{to{transform:translate(9vw,7vh) scale(1.15)}}
+@keyframes bloom2{to{transform:translate(-8vw,-6vh) scale(1.1)}}
+.grain{position:fixed;inset:0;z-index:50;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
-  .badges { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 34px; }
-  .badge {
-    font-family: var(--mono); font-size: 12.5px; color: var(--accent);
-    border: 1px solid var(--line); background: var(--bg-soft);
-    padding: 7px 13px; border-radius: 999px;
-  }
+/* ---------- shell ---------- */
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+header{
+  position:sticky;top:0;z-index:40;
+  backdrop-filter:blur(14px);background:rgba(5,6,10,.72);
+  border-bottom:1px solid var(--line);
+}
+header .wrap{display:flex;justify-content:space-between;align-items:center;height:64px}
+.brand{font-family:var(--mono);font-size:15px;letter-spacing:.22em;color:var(--dim)}
+.brand b{color:var(--ink);font-weight:500}
+nav a{color:var(--dim);text-decoration:none;font-size:13.5px;margin-left:26px;font-family:var(--mono)}
+nav a:hover{color:var(--teal)}
 
-  section { padding: 72px 0; border-top: 1px solid var(--line); }
-  section h2 { font-size: 27px; font-weight: 620; margin-bottom: 8px; letter-spacing: -.01em; }
-  section p.lead { color: var(--ink-dim); max-width: 60ch; margin-bottom: 36px; }
+/* ---------- hero ---------- */
+.hero{padding:130px 0 100px;position:relative}
+.kicker{
+  font-family:var(--mono);font-size:12.5px;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--teal);margin-bottom:26px;display:inline-flex;align-items:center;gap:12px;
+}
+.kicker::before{content:'';width:34px;height:1px;background:var(--teal);display:inline-block}
+h1{
+  font-family:var(--disp);font-weight:800;
+  font-size:clamp(46px,8.4vw,96px);
+  line-height:.98;letter-spacing:-.025em;
+  max-width:12ch;
+}
+h1 .w{display:inline-block;overflow:hidden;vertical-align:bottom}
+h1 .w span{display:inline-block;transform:translateY(110%);filter:blur(6px);opacity:0;
+  animation:rise .9s cubic-bezier(.2,.7,.2,1) forwards}
+h1 em{font-style:normal;color:transparent;-webkit-text-stroke:1.5px var(--ember)}
+@keyframes rise{to{transform:none;filter:none;opacity:1}}
+.hero p.sub{
+  margin-top:30px;max-width:56ch;font-size:19px;color:var(--dim);
+}
+.hero p.sub strong{color:var(--ink);font-weight:550}
+.d1 span{animation-delay:.08s}.d2 span{animation-delay:.18s}.d3 span{animation-delay:.28s}
+.sub,.badges,.hero-cta{opacity:0;animation:fadeup .9s ease .55s forwards}
+@keyframes fadeup{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 
-  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
-  .step {
-    background: var(--bg-soft); border: 1px solid var(--line);
-    border-radius: 14px; padding: 22px;
-  }
-  .step .n { font-family: var(--mono); color: var(--accent); font-size: 13px; }
-  .step h3 { font-size: 16.5px; margin: 8px 0 6px; font-weight: 600; }
-  .step p { font-size: 14px; color: var(--ink-dim); }
+.badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:36px}
+.badge{
+  font-family:var(--mono);font-size:12px;color:var(--dim);
+  border:1px solid var(--line);border-radius:999px;padding:7px 14px;
+  background:linear-gradient(180deg,rgba(255,255,255,.04),transparent);
+}
+.badge b{color:var(--teal);font-weight:500}
+.hero-cta{margin-top:42px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.btn{
+  font-family:var(--mono);font-size:14px;text-decoration:none;
+  padding:14px 28px;border-radius:999px;font-weight:500;
+  background:var(--teal);color:#03211b;
+  box-shadow:0 0 0 0 rgba(45,212,191,.35);
+  transition:box-shadow .35s,transform .35s;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 34px rgba(45,212,191,.35)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--teal);color:var(--teal)}
 
-  .chat-demo {
-    margin-top: 44px; display: grid; gap: 12px; max-width: 560px;
-  }
-  .bubble {
-    max-width: 82%; padding: 14px 17px; border-radius: 16px; font-size: 15px;
-  }
-  .bubble.you {
-    justify-self: end; background: #1a2233; border-bottom-right-radius: 5px;
-  }
-  .bubble.muse {
-    justify-self: start; background: var(--bg-soft); border: 1px solid var(--line);
-    border-bottom-left-radius: 5px;
-  }
-  .bubble.muse::before {
-    content: "muse"; display: block; font-family: var(--mono); font-size: 10.5px;
-    color: var(--accent); letter-spacing: .14em; margin-bottom: 5px;
-  }
+/* ---------- proof strip ---------- */
+.strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.015)}
+.strip .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));padding:34px 24px;gap:18px}
+.stat{font-family:var(--mono)}
+.stat b{display:block;font-size:30px;font-weight:500;color:var(--ink);letter-spacing:-.02em}
+.stat b i{font-style:normal;color:var(--ember)}
+.stat span{font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
 
-  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
-  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); }
-  th { color: var(--ink-dim); font-weight: 500; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
-  td:not(:first-child) { color: var(--ink-dim); }
-  td:first-child { color: var(--ink); font-weight: 550; }
+/* ---------- sections ---------- */
+section{padding:104px 0}
+section h2{font-family:var(--disp);font-weight:700;font-size:clamp(30px,4.4vw,46px);letter-spacing:-.02em;margin-bottom:10px}
+section p.lead{color:var(--dim);max-width:62ch;font-size:17px;margin-bottom:48px}
 
-  .cta {
-    margin: 72px auto 0; text-align: center; padding: 56px 24px;
-    border: 1px solid var(--line); border-radius: 18px; background:
-      radial-gradient(circle at 50% 120%, var(--accent-glow), transparent 60%), var(--bg-soft);
-  }
-  .cta h2 { font-size: 26px; margin-bottom: 10px; }
-  .cta p { color: var(--ink-dim); margin-bottom: 26px; }
-  .btn {
-    display: inline-block; text-decoration: none; font-family: var(--mono);
-    color: var(--bg); background: var(--accent); font-weight: 600;
-    padding: 13px 26px; border-radius: 999px; font-size: 14px;
-  }
-  .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); margin-left: 12px; }
+.reveal{opacity:0;transform:translateY(26px)}
+@supports (animation-timeline: view()){
+  .reveal{animation:reveal both;animation-timeline:view();animation-range:entry 0% entry 55%}
+  @keyframes reveal{to{opacity:1;transform:none}}
+}
+@supports not (animation-timeline: view()){
+  .reveal{opacity:1;transform:none}
+}
 
-  footer { padding: 46px 0 64px; color: var(--ink-dim); font-size: 13.5px; border-top: 1px solid var(--line); }
-  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-  footer a { color: var(--ink-dim); }
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.card{
+  position:relative;border-radius:18px;padding:26px 24px;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+  border:1px solid var(--line);
+  transition:transform .4s cubic-bezier(.2,.7,.2,1),border-color .4s;
+}
+.card:hover{transform:translateY(-6px);border-color:rgba(45,212,191,.4)}
+.card .n{font-family:var(--mono);font-size:12px;color:var(--teal);letter-spacing:.2em}
+.card h3{font-family:var(--disp);font-size:19px;margin:12px 0 8px;font-weight:700}
+.card p{font-size:14.5px;color:var(--dim)}
+
+/* live demo */
+.demo{margin-top:70px;display:grid;grid-template-columns:1fr minmax(280px,360px);gap:60px;align-items:center}
+@media(max-width:820px){.demo{grid-template-columns:1fr}}
+.chat{display:grid;gap:14px;max-width:520px}
+.bubble{max-width:85%;padding:16px 19px;border-radius:18px;font-size:15.5px;line-height:1.55}
+.you{justify-self:end;background:linear-gradient(135deg,#182236,#131a2a);border-bottom-right-radius:5px;color:#dfe5f0}
+.muse{justify-self:start;background:linear-gradient(180deg,rgba(45,212,191,.10),rgba(45,212,191,.04));
+  border:1px solid rgba(45,212,191,.25);border-bottom-left-radius:5px}
+.muse::before{content:'muse · on-device';display:block;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.18em;color:var(--teal);margin-bottom:7px}
+.type{display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:bottom;
+  animation:typing 2.6s steps(31,end) 1s both,caret .8s step-end infinite}
+@keyframes typing{from{max-width:0}to{max-width:32ch}}
+@keyframes caret{50%{border-right:2px solid var(--teal)}}
+
+/* phone mockup */
+.phone{
+  width:270px;height:560px;border-radius:42px;margin:0 auto;position:relative;
+  background:linear-gradient(160deg,#141a26,#0a0d14);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.8),0 0 80px -20px rgba(45,212,191,.22), inset 0 0 0 6px #000;
+  animation:hover-float 7s ease-in-out infinite;
+}
+@keyframes hover-float{50%{transform:translateY(-16px)}}
+.phone::before{content:'';position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  width:86px;height:24px;border-radius:999px;background:#000}
+.screen{position:absolute;inset:12px;border-radius:32px;overflow:hidden;
+  background:radial-gradient(140% 90% at 20% 0%,#101827 0%,#070a11 60%);padding:44px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.screen .mini-title{font-family:var(--mono);font-size:10px;letter-spacing:.24em;color:var(--dim);text-align:center}
+.sb{padding:10px 13px;border-radius:14px;font-size:11.5px;line-height:1.45}
+.sb.u{align-self:flex-end;background:#1b2740;color:#dbe2ef;border-bottom-right-radius:4px}
+.sb.m{align-self:flex-start;background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.22);color:#cfeee8;border-bottom-left-radius:4px;max-width:88%}
+.sb.m b{color:var(--teal);font-weight:500;font-family:var(--mono);font-size:8.5px;letter-spacing:.2em;display:block;margin-bottom:4px}
+.input-bar{margin-top:auto;display:flex;gap:8px;align-items:center;
+  border:1px solid var(--line);border-radius:12px;padding:9px 12px;background:rgba(255,255,255,.03)}
+.input-bar i{width:16px;height:16px;border-radius:50%;background:var(--teal);opacity:.85}
+.input-bar s{text-decoration:none;color:var(--dim);font-size:11px;font-family:var(--mono)}
+
+/* terminal */
+.term{
+  border-radius:16px;overflow:hidden;border:1px solid var(--line);
+  background:#070a10;box-shadow:0 30px 80px -30px rgba(0,0,0,.75);
+}
+.bar{display:flex;gap:7px;padding:13px 16px;background:rgba(255,255,255,.04);border-bottom:1px solid var(--line)}
+.bar i{width:11px;height:11px;border-radius:50%}
+.bar i:nth-child(1){background:#ff5f57}.bar i:nth-child(2){background:#febc2e}.bar i:nth-child(3){background:#28c840}
+.bar span{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.term pre{
+  padding:24px 22px;font-family:var(--mono);font-size:13px;line-height:1.9;
+  color:#b7c2d4;white-space:pre-wrap;
+}
+.term .p{color:var(--teal)}
+.term .u{color:var(--ember)}
+.term .ok{color:#69db7c}
+.caret{display:inline-block;width:9px;height:18px;background:var(--teal);vertical-align:-3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* privacy */
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:15px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);font-weight:400}
+td:first-child{color:var(--ink);font-weight:550;width:34%}
+td:last-child{color:var(--dim)}
+td em{font-style:normal;color:var(--teal)}
+
+/* cta */
+.cta{
+  margin-top:20px;text-align:center;padding:74px 26px;border-radius:22px;position:relative;overflow:hidden;
+  border:1px solid var(--line);
+  background:radial-gradient(90% 130% at 50% 115%,rgba(45,212,191,.16),transparent 62%),rgba(255,255,255,.02);
+}
+.cta h2{margin-bottom:12px}
+.cta p{color:var(--dim);max-width:52ch;margin:0 auto 30px}
+
+footer{padding:54px 0 70px;border-top:1px solid var(--line);color:var(--dim);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+footer a{color:var(--dim)}
+footer a:hover{color:var(--teal)}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+}
 </style>
 </head>
 <body>
 
+<div class="sky"><div class="stars"></div><div class="stars2"></div><div class="stars3"></div></div>
+<div class="aurora"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
+<div class="grain" aria-hidden="true"></div>
+
 <header>
   <div class="wrap">
-    <div class="brand"><b>muse</b></div>
+    <div class="brand">muse<b>_</b></div>
     <nav>
-      <a href="#how">How it works</a>
-      <a href="#privacy">Privacy</a>
-      <a href="https://github.com/10xdev4u-alt/muse">Source</a>
+      <a href="#how">how</a>
+      <a href="#proof">proof</a>
+      <a href="#privacy">privacy</a>
+      <a href="https://github.com/10xdev4u-alt/muse">source</a>
     </nav>
   </div>
 </header>
 
-<div class="hero">
+<div class="hero wrap">
+  <span class="kicker">on-device ai · android</span>
+  <h1>
+    <span class="w d1"><span>A</span> <span>journal</span></span>
+    <span class="w d2"><span>that</span> <span>talks</span></span>
+    <span class="w d3"><span>back.</span> <em>Offline.</em></span>
+  </h1>
+  <p class="sub">
+    Muse is an Android journal with a <strong>real language model living inside it</strong>.
+    Write what's on your mind — it reflects back with questions instead of advice.
+    Everything runs on your phone. <strong>Airplane mode is the intended way to use it.</strong>
+  </p>
+  <div class="badges">
+    <span class="badge"><b>●</b> 100% on-device inference</span>
+    <span class="badge">no accounts</span>
+    <span class="badge">no api keys</span>
+    <span class="badge">biometric lock</span>
+    <span class="badge">MIT · open source</span>
+  </div>
+  <div class="hero-cta">
+    <a class="btn" href="https://github.com/10xdev4u-alt/muse/releases">Get the APK</a>
+    <a class="btn ghost" href="#how">See it think ↓</a>
+  </div>
+</div>
+
+<div class="strip" id="proof">
   <div class="wrap">
-    <h1>A journal that talks back.<br><em>Offline.</em></h1>
-    <p class="sub">
-      Muse is an Android journal with a real language model living inside it.
-      Write what's on your mind; it reflects back with questions instead of advice.
-      <strong>Everything runs on your phone.</strong> Airplane mode is the intended
-      way to use it.
-    </p>
-    <div class="badges">
-      <span class="badge">100% on-device inference</span>
-      <span class="badge">no accounts</span>
-      <span class="badge">no api keys</span>
-      <span class="badge">biometric lock</span>
-      <span class="badge">MIT + open source</span>
-    </div>
+    <div class="stat reveal"><b>~<i>13</i> tok/s</b><span>desktop cpu, cold start</span></div>
+    <div class="stat reveal"><b><i>189</i>ms</b><span>stream cadence, budget phone</span></div>
+    <div class="stat reveal"><b><i>731</i>MB</b><span>one-time download, then never again</span></div>
+    <div class="stat reveal"><b><i>0</i></b><span>bytes leave your device</span></div>
   </div>
 </div>
 
 <section id="how">
   <div class="wrap">
-    <h2>Three moves, no internet</h2>
-    <p class="lead">One 731 MB model downloads over Wi-Fi the first time you open Mind. After that, the network is dead weight — Muse never calls home.</p>
+    <h2 class="reveal">Three moves. No internet.</h2>
+    <p class="lead reveal">One 731 MB model arrives over Wi-Fi the first time you open Mind. After that the radio is dead weight — Muse never calls home.</p>
     <div class="steps">
-      <div class="step"><div class="n">01</div><h3>Pour it out</h3><p>Type raw. The words stay yours — plain text, saved locally, rendered exactly as written.</p></div>
-      <div class="step"><div class="n">02</div><h3>Get reflected</h3><p>Muse mirrors your words and asks one open question. It doesn't lecture, diagnose, or cheerlead.</p></div>
-      <div class="step"><div class="n">03</div><h3>See your day honestly</h3><p>Once daily, it reads your real task history and leaves three grounded prompts about how today actually went.</p></div>
+      <div class="card reveal"><div class="n">01 / POUR</div><h3>Pour it out</h3><p>Type raw. Your words stay yours — plain text, saved locally, rendered exactly as written.</p></div>
+      <div class="card reveal"><div class="n">02 / REFLECT</div><h3>Get reflected</h3><p>The model mirrors what you wrote and asks one open question. It doesn't lecture, diagnose, or cheerlead.</p></div>
+      <div class="card reveal"><div class="n">03 / GROUND</div><h3>See your day honestly</h3><p>Once daily it reads your real task history and leaves three grounded prompts about how today actually went.</p></div>
     </div>
 
-    <div class="chat-demo" aria-label="Example exchange">
-      <div class="bubble you">I keep putting off starting my side project even though I think about it every day.</div>
-      <div class="bubble muse">What specifically is making you hesitant about starting your side project?</div>
+    <div class="demo">
+      <div class="chat reveal" aria-label="Example exchange">
+        <div class="bubble you">I keep putting off starting my side project even though I think about it every day.</div>
+        <div class="bubble muse"><span class="type">What specifically is making you hesitant about starting your side project?</span></div>
+        <div class="bubble you">(that reply was generated on a phone, in airplane mode)</div>
+      </div>
+      <div class="phone reveal" role="img" aria-label="Muse running inside the app">
+        <div class="screen">
+          <div class="mini-title">M I N D</div>
+          <div class="sb u">today felt heavy, couldn't focus on anything</div>
+          <div class="sb m"><b>MUSE</b>Heavy how — more like scattered, or drained?</div>
+          <div class="sb u">scattered. too many open loops</div>
+          <div class="sb m"><b>MUSE</b>Which loop has been open the longest?</div>
+          <div class="input-bar"><s>pour it out…</s><i></i></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="privacy">
+<section id="transcript" style="padding-top:0">
   <div class="wrap">
-    <h2>The privacy stance is structural</h2>
-    <p class="lead">Not a policy page. Architecture.</p>
-    <table>
+    <h2 class="reveal">The first words she ever thought</h2>
+    <p class="lead reveal">From our Phase-0 validation run — unedited, before the UI existed.</p>
+    <div class="term reveal">
+      <div class="bar"><i></i><i></i><i></i><span>muse — desktop validation, lfm2.5-1.2b q4_k_m</span></div>
+<pre><span class="p">$</span> xybrid run -d models/lfm2.5-1.2b-instruct --input-text <span class="u">"I keep putting off starting my side project even though I think about it every day."</span>
+
+<span class="ok">✔ Model            lfm2.5-1.2b-instruct v1.0</span>
+<span class="ok">✔ Inference completed successfully</span>
+
+<span class="p">muse ›</span> What specifically is making you hesitant about starting your
+       side project? Exploring that could help clarify the next steps.
+
+<span class="p">$</span> sha256sum LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+<span class="ok">b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5 ✓ verified</span>
+<span class="caret"></span></pre>
+    </div>
+  </div>
+</section>
+
+<section id="privacy" style="padding-top:0">
+  <div class="wrap">
+    <h2 class="reveal">Privacy is structural</h2>
+    <p class="lead reveal">Not a policy page. Architecture.</p>
+    <table class="reveal">
       <tr><th>Question</th><th>Muse's answer</th></tr>
-      <tr><td>Where do my thoughts go?</td><td>Your phone's local database. Included in its encrypted-at-rest app storage.</td></tr>
-      <tr><td>Where does inference run?</td><td>On-device CPU, via llama.cpp. Unloadable in one tap.</td></tr>
-      <tr><td>What leaves the device?</td><td>One model download, once, that you start yourself. Nothing else, ever.</td></tr>
-      <tr><td>Who can read my journal?</td><td>Whoever passes the biometric or PIN lock. Same as the rest of the app.</td></tr>
-      <tr><td>Analytics? Telemetry?</td><td>No. Not even on this landing page.</td></tr>
+      <tr><td>Where do my thoughts go?</td><td>Your phone's local database, inside Android's encrypted app storage. Included in the app's own backup/export.</td></tr>
+      <tr><td>Where does inference run?</td><td>On-device CPU via llama.cpp. Unloadable in one tap from Settings.</td></tr>
+      <tr><td>What leaves the device?</td><td><em>One</em> model download, once, started by you. SHA256-pinned and verified before load. Nothing else, ever.</td></tr>
+      <tr><td>Who can read my journal?</td><td>Whoever passes the biometric or PIN lock — same gate as every other screen.</td></tr>
+      <tr><td>Analytics? Telemetry?</td><td>No. Not on this page either — zero third-party requests, fonts included.</td></tr>
     </table>
   </div>
 </section>
 
 <div class="wrap">
-  <div class="cta">
-    <h2>Built in the open</h2>
-    <p>Every feature lands as a reviewed PR against a tracked issue. Research first, code second.</p>
+  <div class="cta reveal">
+    <h2>Built in the open, shipped with receipts</h2>
+    <p>Every feature lands as a reviewed pull request against a tracked issue. Research first, code second, metrics public.</p>
     <a class="btn" href="https://github.com/10xdev4u-alt/muse">Read the source</a>
-    <a class="btn ghost" href="https://github.com/10xdev4u-alt/muse/blob/main/docs/journey/METRICS.md">Build metrics</a>
+    <a class="btn ghost" href="https://github.com/10xdev4u-alt/muse/tree/main/docs/journey">The journey log</a>
   </div>
 </div>
 
 <footer>
   <div class="wrap">
     <div>muse — a journal that talks back. offline.</div>
-    <div>foundation: <a href="https://github.com/rjwarrier/yata">yata</a> · engine: <a href="https://github.com/xybrid-ai/xybrid">xybrid</a> · license: MIT</div>
+    <div>foundation <a href="https://github.com/rjwarrier/yata">yata</a> · engine <a href="https://github.com/xybrid-ai/xybrid">xybrid</a> · model <a href="https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF">lfm2.5</a> · <a href="https://github.com/10xdev4u-alt/muse/blob/main/LICENSE">MIT</a></div>
   </div>
 </footer>
 
